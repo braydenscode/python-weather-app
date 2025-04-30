@@ -1,7 +1,7 @@
 import sys
 import os
 import requests
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout
+from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout
 from PyQt5.QtCore import Qt
 
 class WeatherApp(QWidget):
@@ -10,23 +10,35 @@ class WeatherApp(QWidget):
         self.city_label = QLabel("Enter city name: ", self)
         self.city_input = QLineEdit(self)
         self.get_weather_button = QPushButton("Get Weather", self)
+        self.change_unit_button = QPushButton("°C", self)
+        self.change_unit_button.hide()
         self.temperature_label = QLabel(self)
         self.emoji_label = QLabel(self)
         self.description_label = QLabel(self)
         self.initUI()
 
+        self.unit_is_fahrenheit = True
+        self.temperature_k = None
+
     def initUI(self):
         self.setWindowTitle("Weather App")
+
+        temp_layout = QHBoxLayout()
+        temp_layout.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+        temp_layout.addWidget(self.temperature_label, alignment=Qt.AlignVCenter)
+        temp_layout.addWidget(self.change_unit_button, alignment=Qt.AlignVCenter)
 
         vbox = QVBoxLayout()
         vbox.addWidget(self.city_label)
         vbox.addWidget(self.city_input)
         vbox.addWidget(self.get_weather_button)
-        vbox.addWidget(self.temperature_label)
+        vbox.addLayout(temp_layout)
         vbox.addWidget(self.emoji_label)
         vbox.addWidget(self.description_label)
 
         self.setLayout(vbox)
+
+        self.change_unit_button.setFixedSize(50, 50)
 
         self.city_label.setAlignment(Qt.AlignCenter)
         self.city_input.setAlignment(Qt.AlignCenter)
@@ -37,6 +49,7 @@ class WeatherApp(QWidget):
         self.city_label.setObjectName("city_label")
         self.city_input.setObjectName("city_input")
         self.get_weather_button.setObjectName("get_weather_button")
+        self.change_unit_button.setObjectName("change_unit_button")
         self.temperature_label.setObjectName("temperature_label")
         self.emoji_label.setObjectName("emoji_label")
         self.description_label.setObjectName("description_label")
@@ -52,12 +65,13 @@ class WeatherApp(QWidget):
             QLineEdit#city_input{
                 font-size: 40px;
             }
-            QPushButton#get_weather_button{
+            QPushButton#get_weather_button, QPushButton#change_unit_button{
                 font-size: 30px;
                 font-weight: bold;
             }
             QLabel#temperature_label{
                 font-size: 75px;
+                padding-right: 10px;
             }
             QLabel#emoji_label{
                 font-size: 100px;
@@ -68,12 +82,22 @@ class WeatherApp(QWidget):
             }
         """)
 
+        self.city_input.returnPressed.connect(self.get_weather)
         self.get_weather_button.clicked.connect(self.get_weather)
+        self.change_unit_button.clicked.connect(self.change_unit)
 
     def get_weather(self):
         api_key = os.getenv("API_KEY")
+        self.temperature_k = None
         city = self.city_input.text()
         url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}"
+
+        self.temperature_label.setText("")
+        self.emoji_label.clear()
+        self.description_label.clear()
+
+        self.get_weather_button.setEnabled(False)
+        self.change_unit_button.setEnabled(False)
 
         try:
             response = requests.get(url)
@@ -81,6 +105,7 @@ class WeatherApp(QWidget):
             data = response.json()
 
             if data["cod"] == 200:
+                print(data)
                 self.display_weather(data)
 
         except requests.exceptions.HTTPError as http_error:
@@ -112,6 +137,9 @@ class WeatherApp(QWidget):
             self.display_error("Too many redirects:\nCheck the URL")
         except requests.exceptions.RequestException as req_error:
             self.display_error(f"Request Error:\n{req_error}")
+        finally:
+            self.get_weather_button.setEnabled(True)
+            self.change_unit_button.setEnabled(True)
 
 
 
@@ -121,17 +149,31 @@ class WeatherApp(QWidget):
         self.emoji_label.clear()
         self.description_label.clear()
 
-    def display_weather(self, data):
-        self.temperature_label.setStyleSheet("font-size: 75px;")
-        temperature_k = data["main"]["temp"]
-        temperature_c = temperature_k - 273.15
-        temperature_f = (temperature_k * 9 / 5) - 459.67
-        weather_id = data["weather"][0]["id"]
-        weather_description = data["weather"][0]["description"]
+    def display_weather(self, data=None):
+        if data:
+            self.temperature_k = data["main"]["temp"]
+            weather_id = data["weather"][0]["id"]
+            weather_description = data["weather"][0]["description"]
+            self.emoji_label.setText(self.get_weather_emoji(weather_id))
+            self.description_label.setText(weather_description.capitalize())
 
-        self.temperature_label.setText(f"{temperature_f:.0f}°F")
-        self.emoji_label.setText(self.get_weather_emoji(weather_id))
-        self.description_label.setText(weather_description)
+        if self.temperature_k is not None:
+            self.change_unit_button.show()
+            self.temperature_label.setStyleSheet("font-size: 75px;")
+            temperature_c = self.temperature_k - 273.15
+            temperature_f = (self.temperature_k * 9 / 5) - 459.67
+            if self.unit_is_fahrenheit:
+                self.temperature_label.setText(f"{temperature_f:.0f}°F")
+            else:
+                self.temperature_label.setText(f"{temperature_c:.1f}°C")
+        else:
+            self.change_unit_button.hide()
+
+
+    def change_unit(self):
+        self.unit_is_fahrenheit = not self.unit_is_fahrenheit
+        self.change_unit_button.setText("°F" if not self.unit_is_fahrenheit else "°C")
+        self.display_weather()
 
     @staticmethod
     def get_weather_emoji(weather_id):
