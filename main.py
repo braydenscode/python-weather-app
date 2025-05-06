@@ -3,6 +3,7 @@ import os
 import requests
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QPainter, QLinearGradient, QColor, QBrush, QGradient
 
 class WeatherApp(QWidget):
     def __init__(self):
@@ -21,6 +22,7 @@ class WeatherApp(QWidget):
         self.temperature_k = None
 
     def initUI(self):
+        self.setAutoFillBackground(True)
         self.setWindowTitle("Weather App")
 
         temp_layout = QHBoxLayout()
@@ -85,6 +87,17 @@ class WeatherApp(QWidget):
         self.city_input.returnPressed.connect(self.get_weather)
         self.get_weather_button.clicked.connect(self.get_weather)
         self.change_unit_button.clicked.connect(self.change_unit)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        rect = self.rect()
+
+        gradient = QLinearGradient(0, 0, 0, rect.height())
+        gradient.setColorAt(0, QColor("#a1c4fd"))
+        gradient.setColorAt(1, QColor("#c2e9fb"))
+
+        brush = QBrush(gradient)
+        painter.fillRect(rect, brush)
 
     def get_weather(self):
         api_key = os.getenv("API_KEY")
