@@ -1,11 +1,32 @@
 import sys
 import os
 import requests
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout
+import datetime
+from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QGraphicsDropShadowEffect
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPainter, QLinearGradient, QColor, QBrush, QGradient
 
 class WeatherApp(QWidget):
+    WEATHER_GRADIENTS = {
+        # "Clear": ("#fceabb", "#f8b500"),
+        "Clear_day": ("#fceabb", "#f8b500"),
+        "Clear_night": ("#112159", "#93659F"),
+        "Clouds": ("#d7d2cc", "#304352"),
+        "Rain": ("#4e54c8", "#8f94fb"),
+        "Drizzle": ("#89f7fe", "#66a6ff"),
+        "Thunderstorm": ("#373B44", "#4286f4"),
+        "Snow": ("#e0eafc", "#cfdef3"),
+        "Mist": ("#d3cce3", "#e9e4f0"),
+        "Fog": ("#d3cce3", "#e9e4f0"),
+        "Haze": ("#d3cce3", "#e9e4f0"),
+        "Smoke": ("#636363", "#a2ab58"),
+        "Dust": ("#b79891", "#94716b"),
+        "Sand": ("#c2b280", "#e6d3b3"),
+        "Ash": ("#a770ef", "#cf8bf3"),
+        "Squall": ("#3a6073", "#16222a"),
+        "Tornado": ("#232526", "#414345"),
+    }
+
     def __init__(self):
         super().__init__()
         self.city_label = QLabel("Enter city name: ", self)
@@ -18,6 +39,7 @@ class WeatherApp(QWidget):
         self.description_label = QLabel(self)
         self.initUI()
 
+        self.weather_data = None
         self.unit_is_fahrenheit = True
         self.temperature_k = None
 
@@ -56,6 +78,10 @@ class WeatherApp(QWidget):
         self.emoji_label.setObjectName("emoji_label")
         self.description_label.setObjectName("description_label")
 
+        self.add_text_shadow(self.city_label)
+        self.add_text_shadow(self.temperature_label)
+        self.add_text_shadow(self.description_label)
+
         self.setStyleSheet("""
             QLabel, QPushButton{
                 font-family: calibri;
@@ -88,16 +114,47 @@ class WeatherApp(QWidget):
         self.get_weather_button.clicked.connect(self.get_weather)
         self.change_unit_button.clicked.connect(self.change_unit)
 
+    def add_text_shadow(self, label, color=Qt.white, offset=(0, 0), blur_radius=8):
+        shadow = QGraphicsDropShadowEffect(self)
+        shadow.setBlurRadius(blur_radius)
+        shadow.setOffset(*offset)
+        shadow.setColor(color)
+        label.setGraphicsEffect(shadow)
+
     def paintEvent(self, event):
         painter = QPainter(self)
         rect = self.rect()
 
-        gradient = QLinearGradient(0, 0, 0, rect.height())
-        gradient.setColorAt(0, QColor("#a1c4fd"))
-        gradient.setColorAt(1, QColor("#c2e9fb"))
+        top_color = "#a1c4fd"
+        bottom_color = "#c2e9fb"
 
-        brush = QBrush(gradient)
-        painter.fillRect(rect, brush)
+        if self.weather_data:
+            weather_main = self.weather_data["weather"][0]["main"]
+            top_color, bottom_color = self.WEATHER_GRADIENTS.get(weather_main, (top_color, bottom_color))
+
+            sunrise_timestamp = self.weather_data["sys"]["sunrise"]
+            sunset_timestamp = self.weather_data["sys"]["sunset"]
+            timezone_offset = self.weather_data["timezone"]
+
+            sunrise_time = datetime.datetime.fromtimestamp(sunrise_timestamp, tz=datetime.timezone(datetime.timedelta(seconds=timezone_offset)))
+            sunset_time = datetime.datetime.fromtimestamp(sunset_timestamp, tz=datetime.timezone(datetime.timedelta(seconds=timezone_offset)))
+            current_time = datetime.datetime.now(datetime.timezone(datetime.timedelta(seconds=timezone_offset)))
+
+            is_daytime = sunrise_time < current_time < sunset_time
+
+            if not is_daytime:
+                if weather_main == "Clear":
+                    key = "Clear_day" if is_daytime else "Clear_night"
+                else:
+                    key = weather_main
+                top_color, bottom_color = self.WEATHER_GRADIENTS.get(key, (top_color, bottom_color))
+
+
+        gradient = QLinearGradient(0, 0, 0, rect.height())
+        gradient.setColorAt(0, QColor(top_color))
+        gradient.setColorAt(1, QColor(bottom_color))
+
+        painter.fillRect(rect, QBrush(gradient))
 
     def get_weather(self):
         api_key = os.getenv("API_KEY")
@@ -164,6 +221,8 @@ class WeatherApp(QWidget):
 
     def display_weather(self, data=None):
         if data:
+            self.weather_data = data
+            self.repaint()
             self.temperature_k = data["main"]["temp"]
             weather_id = data["weather"][0]["id"]
             weather_description = data["weather"][0]["description"]
@@ -212,8 +271,6 @@ class WeatherApp(QWidget):
             return "☁"
         else:
             return ""
-
-
 
 
 if __name__ == "__main__":
