@@ -37,11 +37,17 @@ class WeatherApp(QWidget):
         self.temperature_label = QLabel(self)
         self.emoji_label = QLabel(self)
         self.description_label = QLabel(self)
+
+        self.wind_label = QLabel(self)
+        self.humidity_label = QLabel(self)
+        self.clouds_label = QLabel(self)
+
         self.initUI()
 
         self.weather_data = None
         self.unit_is_fahrenheit = True
         self.temperature_k = None
+        self.wind_speed = None
 
     def initUI(self):
         self.setAutoFillBackground(True)
@@ -52,12 +58,28 @@ class WeatherApp(QWidget):
         temp_layout.addWidget(self.temperature_label, alignment=Qt.AlignVCenter)
         temp_layout.addWidget(self.change_unit_button, alignment=Qt.AlignVCenter)
 
+        secondary_layout = QHBoxLayout()
+        secondary_layout.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+        secondary_layout.addWidget(self.wind_label)
+        secondary_layout.addWidget(self.humidity_label)
+        secondary_layout.addWidget(self.clouds_label)
+
+        self.wind_label.setAlignment(Qt.AlignCenter)
+        self.humidity_label.setAlignment(Qt.AlignCenter)
+        self.clouds_label.setAlignment(Qt.AlignCenter)
+
+        self.wind_label.setFixedSize(100, 50)
+        self.humidity_label.setFixedSize(100, 50)
+        self.clouds_label.setFixedSize(100, 50)
+
+
         vbox = QVBoxLayout()
         vbox.addWidget(self.city_label)
         vbox.addWidget(self.city_input)
         vbox.addWidget(self.get_weather_button)
         vbox.addLayout(temp_layout)
         vbox.addWidget(self.emoji_label)
+        vbox.addLayout(secondary_layout)
         vbox.addWidget(self.description_label)
 
         self.setLayout(vbox)
@@ -78,9 +100,18 @@ class WeatherApp(QWidget):
         self.emoji_label.setObjectName("emoji_label")
         self.description_label.setObjectName("description_label")
 
+        self.wind_label.setObjectName("wind_label")
+        self.humidity_label.setObjectName("humidity_label")
+        self.clouds_label.setObjectName("clouds_label")
+
+
         self.add_text_shadow(self.city_label)
         self.add_text_shadow(self.temperature_label)
         self.add_text_shadow(self.description_label)
+
+        self.add_text_shadow(self.wind_label)
+        self.add_text_shadow(self.humidity_label)
+        self.add_text_shadow(self.clouds_label)
 
         self.setStyleSheet("""
             QLabel, QPushButton{
@@ -107,6 +138,11 @@ class WeatherApp(QWidget):
             }
             QLabel#description_label{
                 font-size: 50px;
+            }
+            QLabel#wind_label, QLabel#humidity_label, QLabel#clouds_label{
+                font-size: 20px;
+                font-weight: bold;
+                padding: 0px 1px 0px 1px;
             }
         """)
 
@@ -224,10 +260,15 @@ class WeatherApp(QWidget):
             self.weather_data = data
             self.repaint()
             self.temperature_k = data["main"]["temp"]
+            self.wind_speed = data["wind"]["speed"]
             weather_id = data["weather"][0]["id"]
             weather_description = data["weather"][0]["description"]
             self.emoji_label.setText(self.get_weather_emoji(weather_id))
             self.description_label.setText(weather_description.capitalize())
+
+            # self.wind_label.setText(f"Wind\n{self.wind_speed}")
+            self.humidity_label.setText(f"Humidity\n{data["main"]["humidity"]}%")
+            self.clouds_label.setText(f"Clouds\n{data["clouds"]["all"]}%")
 
         if self.temperature_k is not None:
             self.change_unit_button.show()
@@ -236,8 +277,10 @@ class WeatherApp(QWidget):
             temperature_f = (self.temperature_k * 9 / 5) - 459.67
             if self.unit_is_fahrenheit:
                 self.temperature_label.setText(f"{temperature_f:.0f}°F")
+                self.wind_label.setText(f"Wind\n{self.wind_speed * 2.237:.1f}mph")
             else:
                 self.temperature_label.setText(f"{temperature_c:.1f}°C")
+                self.wind_label.setText(f"Wind\n{self.wind_speed:.1f}m/s")
         else:
             self.change_unit_button.hide()
 
