@@ -2,9 +2,10 @@ import sys
 import os
 import requests
 import datetime
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QGraphicsDropShadowEffect
+from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, \
+    QGraphicsDropShadowEffect, QStackedWidget
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QPainter, QLinearGradient, QColor, QBrush, QGradient
+from PyQt5.QtGui import QPainter, QLinearGradient, QColor, QBrush
 
 class WeatherApp(QWidget):
     WEATHER_GRADIENTS = {
@@ -37,60 +38,113 @@ class WeatherApp(QWidget):
         self.temperature_label = QLabel(self)
         self.emoji_label = QLabel(self)
         self.description_label = QLabel(self)
+        self.change_display_button = QPushButton("Advanced", self)
 
-        self.wind_label = QLabel(self)
+        self.feels_like_label = QLabel(self)
+        self.temp_range_label = QLabel(self)
+        self.pressure_label = QLabel(self)
+        self.visibility_label = QLabel(self)
+        self.wind_direction_label = QLabel(self)
+        self.wind_gust_label = QLabel(self)
+        self.coordinates_label = QLabel(self)
+        self.sunrise_label = QLabel(self)
+        self.sunset_label = QLabel(self)
+        self.country_label = QLabel(self)
+        self.local_time_label = QLabel(self)
+
+        self.wind_speed_label = QLabel(self)
         self.humidity_label = QLabel(self)
         self.clouds_label = QLabel(self)
+
+        self.stacked_widget = QStackedWidget(self)
+
+        self.compact_widget = QWidget()
+        self.advanced_widget = QWidget()
 
         self.initUI()
 
         self.weather_data = None
         self.unit_is_fahrenheit = True
-        self.temperature_k = None
-        self.wind_speed = None
+        self.is_daytime = None
 
     def initUI(self):
         self.setAutoFillBackground(True)
         self.setWindowTitle("Weather App")
 
-        temp_layout = QHBoxLayout()
-        temp_layout.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
-        temp_layout.addWidget(self.temperature_label, alignment=Qt.AlignVCenter)
-        temp_layout.addWidget(self.change_unit_button, alignment=Qt.AlignVCenter)
+        # for label in [
+        #     self.feels_like_label,
+        #     self.temp_range_label,
+        #     self.pressure_label,
+        #     self.visibility_label,
+        #     self.wind_direction_label,
+        #     self.wind_gust_label,
+        #     self.coordinates_label,
+        #     self.sunrise_label,
+        #     self.sunset_label,
+        #     self.country_label,
+        #     self.local_time_label,
+        # ]:
+        #     label.setAlignment(Qt.AlignCenter)
+        #     label.setWordWrap(True)
 
-        secondary_layout = QHBoxLayout()
-        secondary_layout.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
-        secondary_layout.addWidget(self.wind_label)
-        secondary_layout.addWidget(self.humidity_label)
-        secondary_layout.addWidget(self.clouds_label)
-
-        self.wind_label.setAlignment(Qt.AlignCenter)
+        self.wind_speed_label.setAlignment(Qt.AlignCenter)
         self.humidity_label.setAlignment(Qt.AlignCenter)
         self.clouds_label.setAlignment(Qt.AlignCenter)
-
-        self.wind_label.setFixedSize(100, 50)
-        self.humidity_label.setFixedSize(100, 50)
-        self.clouds_label.setFixedSize(100, 50)
-
-
-        vbox = QVBoxLayout()
-        vbox.addWidget(self.city_label)
-        vbox.addWidget(self.city_input)
-        vbox.addWidget(self.get_weather_button)
-        vbox.addLayout(temp_layout)
-        vbox.addWidget(self.emoji_label)
-        vbox.addLayout(secondary_layout)
-        vbox.addWidget(self.description_label)
-
-        self.setLayout(vbox)
-
-        self.change_unit_button.setFixedSize(50, 50)
 
         self.city_label.setAlignment(Qt.AlignCenter)
         self.city_input.setAlignment(Qt.AlignCenter)
         self.temperature_label.setAlignment(Qt.AlignCenter)
         self.emoji_label.setAlignment(Qt.AlignCenter)
         self.description_label.setAlignment(Qt.AlignCenter)
+
+        self.wind_speed_label.setFixedSize(100, 50)
+        self.humidity_label.setFixedSize(100, 50)
+        self.clouds_label.setFixedSize(100, 50)
+        self.change_unit_button.setFixedSize(30, 30)
+        self.change_display_button.setFixedSize(100, 30)
+
+        bottom_button_layout = QHBoxLayout()
+        bottom_button_layout.addWidget(self.change_unit_button, alignment=Qt.AlignLeft)
+        bottom_button_layout.spacing()
+        bottom_button_layout.addWidget(self.change_display_button, alignment=Qt.AlignRight)
+
+        secondary_layout = QHBoxLayout()
+        secondary_layout.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+        secondary_layout.addWidget(self.wind_speed_label)
+        secondary_layout.addWidget(self.humidity_label)
+        secondary_layout.addWidget(self.clouds_label)
+
+        input_layout = QVBoxLayout()
+        input_layout.addWidget(self.city_label)
+        input_layout.addWidget(self.city_input)
+        input_layout.addWidget(self.get_weather_button)
+
+        compact_layout = QVBoxLayout()
+        compact_layout.addWidget(self.temperature_label)
+        compact_layout.addWidget(self.emoji_label)
+        compact_layout.addLayout(secondary_layout)
+        compact_layout.addWidget(self.description_label)
+        self.compact_widget.setLayout(compact_layout)
+
+        advanced_layout = QVBoxLayout()
+        # advanced_layout.addWidget(self.city_label)
+        # advanced_layout.addWidget(self.city_input)
+        # advanced_layout.addWidget(self.get_weather_button)
+        # advanced_layout.addWidget(self.temperature_label)
+        # advanced_layout.addWidget(self.emoji_label)
+        # advanced_layout.addLayout(secondary_layout)
+        # advanced_layout.addWidget(self.description_label)
+        self.advanced_widget.setLayout(advanced_layout)
+
+        self.stacked_widget.addWidget(self.compact_widget)
+        self.stacked_widget.addWidget(self.advanced_widget)
+        self.stacked_widget.setCurrentIndex(0)
+
+        main_layout = QVBoxLayout()
+        main_layout.addLayout(input_layout)
+        main_layout.addWidget(self.stacked_widget)
+        main_layout.addLayout(bottom_button_layout)
+        self.setLayout(main_layout)
 
         self.city_label.setObjectName("city_label")
         self.city_input.setObjectName("city_input")
@@ -99,17 +153,16 @@ class WeatherApp(QWidget):
         self.temperature_label.setObjectName("temperature_label")
         self.emoji_label.setObjectName("emoji_label")
         self.description_label.setObjectName("description_label")
-
-        self.wind_label.setObjectName("wind_label")
+        self.wind_speed_label.setObjectName("wind_speed_label")
         self.humidity_label.setObjectName("humidity_label")
         self.clouds_label.setObjectName("clouds_label")
+        self.change_display_button.setObjectName("change_display_button")
 
 
-        self.add_text_shadow(self.city_label)
+        self.add_text_shadow(self.city_label, Qt.white, (0, 0), 50)
         self.add_text_shadow(self.temperature_label)
         self.add_text_shadow(self.description_label)
-
-        self.add_text_shadow(self.wind_label)
+        self.add_text_shadow(self.wind_speed_label)
         self.add_text_shadow(self.humidity_label)
         self.add_text_shadow(self.clouds_label)
 
@@ -124,9 +177,13 @@ class WeatherApp(QWidget):
             QLineEdit#city_input{
                 font-size: 40px;
             }
-            QPushButton#get_weather_button, QPushButton#change_unit_button{
+            QPushButton#get_weather_button{
                 font-size: 30px;
                 font-weight: bold;
+            }
+            QPushButton#change_display_button, QPushButton#change_unit_button{
+                font-size: 20px;
+                font-style: italic;
             }
             QLabel#temperature_label{
                 font-size: 75px;
@@ -139,7 +196,7 @@ class WeatherApp(QWidget):
             QLabel#description_label{
                 font-size: 50px;
             }
-            QLabel#wind_label, QLabel#humidity_label, QLabel#clouds_label{
+            QLabel#wind_speed_label, QLabel#humidity_label, QLabel#clouds_label{
                 font-size: 20px;
                 font-weight: bold;
                 padding: 0px 1px 0px 1px;
@@ -149,6 +206,7 @@ class WeatherApp(QWidget):
         self.city_input.returnPressed.connect(self.get_weather)
         self.get_weather_button.clicked.connect(self.get_weather)
         self.change_unit_button.clicked.connect(self.change_unit)
+        self.change_display_button.clicked.connect(self.change_display)
 
     def add_text_shadow(self, label, color=Qt.white, offset=(0, 0), blur_radius=8):
         shadow = QGraphicsDropShadowEffect(self)
@@ -174,16 +232,17 @@ class WeatherApp(QWidget):
 
             sunrise_time = datetime.datetime.fromtimestamp(sunrise_timestamp, tz=datetime.timezone(datetime.timedelta(seconds=timezone_offset)))
             sunset_time = datetime.datetime.fromtimestamp(sunset_timestamp, tz=datetime.timezone(datetime.timedelta(seconds=timezone_offset)))
-            current_time = datetime.datetime.now(datetime.timezone(datetime.timedelta(seconds=timezone_offset)))
+            current_local_time = datetime.datetime.now(datetime.timezone(datetime.timedelta(seconds=timezone_offset)))
 
-            is_daytime = sunrise_time < current_time < sunset_time
+            self.is_daytime = sunrise_time < current_local_time < sunset_time
 
-            if not is_daytime:
-                if weather_main == "Clear":
-                    key = "Clear_day" if is_daytime else "Clear_night"
-                else:
-                    key = weather_main
-                top_color, bottom_color = self.WEATHER_GRADIENTS.get(key, (top_color, bottom_color))
+
+            if weather_main == "Clear":
+                key = "Clear_day" if self.is_daytime else "Clear_night"
+            else:
+                key = weather_main
+
+            top_color, bottom_color = self.WEATHER_GRADIENTS.get(key, (top_color, bottom_color))
 
 
         gradient = QLinearGradient(0, 0, 0, rect.height())
@@ -194,16 +253,20 @@ class WeatherApp(QWidget):
 
     def get_weather(self):
         api_key = os.getenv("API_KEY")
-        self.temperature_k = None
         city = self.city_input.text()
         url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}"
 
         self.temperature_label.setText("")
         self.emoji_label.clear()
         self.description_label.clear()
+        self.wind_speed_label.clear()
+        self.humidity_label.clear()
+        self.clouds_label.clear()
+        self.change_unit_button.hide()
 
         self.get_weather_button.setEnabled(False)
         self.change_unit_button.setEnabled(False)
+        self.change_display_button.setEnabled(False)
 
         try:
             response = requests.get(url)
@@ -212,7 +275,8 @@ class WeatherApp(QWidget):
 
             if data["cod"] == 200:
                 print(data)
-                self.display_weather(data)
+                self.weather_data = data
+                self.display_weather()
 
         except requests.exceptions.HTTPError as http_error:
             match response.status_code:
@@ -246,6 +310,7 @@ class WeatherApp(QWidget):
         finally:
             self.get_weather_button.setEnabled(True)
             self.change_unit_button.setEnabled(True)
+            self.change_display_button.setEnabled(True)
 
 
 
@@ -254,35 +319,58 @@ class WeatherApp(QWidget):
         self.temperature_label.setText(message)
         self.emoji_label.clear()
         self.description_label.clear()
+        self.wind_speed_label.clear()
+        self.humidity_label.clear()
+        self.clouds_label.clear()
+        self.change_unit_button.hide()
 
-    def display_weather(self, data=None):
-        if data:
-            self.weather_data = data
+    def display_weather(self):
+        if self.weather_data:
             self.repaint()
-            self.temperature_k = data["main"]["temp"]
-            self.wind_speed = data["wind"]["speed"]
-            weather_id = data["weather"][0]["id"]
-            weather_description = data["weather"][0]["description"]
+
+            self.city_input.setText(f"{self.weather_data['name']}, {self.weather_data['sys']['country']}")
+            weather_id = self.weather_data["weather"][0]["id"]
+            weather_description = self.weather_data["weather"][0]["description"]
             self.emoji_label.setText(self.get_weather_emoji(weather_id))
             self.description_label.setText(weather_description.capitalize())
 
-            # self.wind_label.setText(f"Wind\n{self.wind_speed}")
-            self.humidity_label.setText(f"Humidity\n{data["main"]["humidity"]}%")
-            self.clouds_label.setText(f"Clouds\n{data["clouds"]["all"]}%")
+            self.wind_speed_label.setText(f"Wind\n{self.weather_data["wind"]["speed"]}")
+            self.humidity_label.setText(f"Humidity\n{self.weather_data['main']['humidity']}%")
+            self.clouds_label.setText(f"Clouds\n{self.weather_data['clouds']['all']}%")
 
-        if self.temperature_k is not None:
             self.change_unit_button.show()
             self.temperature_label.setStyleSheet("font-size: 75px;")
-            temperature_c = self.temperature_k - 273.15
-            temperature_f = (self.temperature_k * 9 / 5) - 459.67
+            def convert_to_c(temp):
+                return temp - 273.15
+            def convert_to_f(temp):
+                return (temp * 9 / 5) - 459.67
             if self.unit_is_fahrenheit:
-                self.temperature_label.setText(f"{temperature_f:.0f}°F")
-                self.wind_label.setText(f"Wind\n{self.wind_speed * 2.237:.1f}mph")
+                self.temperature_label.setText(f"{convert_to_f(self.weather_data['main']['temp']):.0f}°F")
+                self.wind_speed_label.setText(f"Wind\n{self.weather_data['wind']['speed'] * 2.237:.1f} mph")
+                # self.feels_like_label.setText(f"Feels Like\n{convert_to_f(self.weather_data['main']['feels_like']):.0f}°F")
+                # self.temp_range_label.setText(
+                #     f"Temp Min\n{convert_to_f(self.weather_data['main']['temp_min']):.0f}°F\nTemp Max\n{convert_to_f(self.weather_data['main']['temp_max']):.0f}°F")
             else:
-                self.temperature_label.setText(f"{temperature_c:.1f}°C")
-                self.wind_label.setText(f"Wind\n{self.wind_speed:.1f}m/s")
+                self.temperature_label.setText(f"{convert_to_c(self.weather_data['main']['temp']):.1f}°C")
+                self.wind_speed_label.setText(f"Wind\n{self.weather_data['wind']['speed']:.1f} m/s")
+                # self.feels_like_label.setText(f"Feels Like\n{convert_to_c(self.weather_data['main']['feels_like']):.1f}°C")
+                # self.temp_range_label.setText(
+                #     f"Temp Min\n{convert_to_c(self.weather_data['main']['temp_min']):.1f}°C\nTemp Max\n{convert_to_c(self.weather_data['main']['temp_max']):.1f}°C")
         else:
             self.change_unit_button.hide()
+
+
+
+        # self.pressure_label.setText(f"Pressure\n{self.weather_data['main']['pressure']} hPa")
+        # self.visibility_label.setText(f"Visibility\n{self.weather_data['visibility']} m")
+        # self.wind_gust_label.setText(f"Wind Gust\n{self.weather_data['wind']['gust']} m/s")
+        # self.sunrise_label.setText(f"Sunrise\n{datetime.datetime.fromtimestamp(self.weather_data['sys']['sunrise'], tz=datetime.timezone(datetime.timedelta(seconds=self.weather_data['timezone']))).strftime('%H:%M:%S')}")
+        # self.sunset_label.setText(f"Sunset\n{datetime.datetime.fromtimestamp(self.weather_data['sys']['sunset'], tz=datetime.timezone(datetime.timedelta(seconds=self.weather_data['timezone']))).strftime('%H:%M:%S')}")
+        # self.wind_direction_label.setText(f"Wind Dir\n{self.weather_data['wind']['deg']}°")
+        # self.coordinates_label.setText(f"Coords\n{self.weather_data['coord']['lat']}, {self.weather_data['coord']['lon']}")
+        # self.country_label.setText(f"Country\n{self.weather_data['sys']['country']}")
+        # REMOVED CURRENT LOCAL TIME, NEED TO SWITCH TO USE DT
+        # self.local_time_label.setText(f"Local Time\n{self.current_local_time.strftime('%H:%M:%S')}")
 
 
     def change_unit(self):
@@ -290,8 +378,13 @@ class WeatherApp(QWidget):
         self.change_unit_button.setText("°F" if not self.unit_is_fahrenheit else "°C")
         self.display_weather()
 
-    @staticmethod
-    def get_weather_emoji(weather_id):
+    def change_display(self):
+        current_index = self.stacked_widget.currentIndex()
+        new_index = 1 if current_index == 0 else 0
+        self.stacked_widget.setCurrentIndex(new_index)
+        self.change_display_button.setText("Compact" if new_index == 1 else "Advanced")
+
+    def get_weather_emoji(self, weather_id):
         if 200 <= weather_id <= 232:
             return "⛈"
         elif 300 <= weather_id <= 321:
@@ -309,8 +402,17 @@ class WeatherApp(QWidget):
         elif weather_id == 781:
             return "🌪"
         elif weather_id == 800:
-            return "☀"
-        elif 801 <= weather_id <= 804:
+            if self.is_daytime:
+                return "☀"
+            else:
+                return "🌙"
+        elif weather_id == 801:
+            return "🌤"
+        elif weather_id == 802:
+            return "⛅"
+        elif weather_id == 803:
+            return "🌥"
+        elif weather_id == 804:
             return "☁"
         else:
             return ""
