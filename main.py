@@ -33,15 +33,22 @@ class WeatherApp(QWidget):
         self.city_label = QLabel("Enter city name: ", self)
         self.city_input = QLineEdit(self)
         self.get_weather_button = QPushButton("Get Weather", self)
+
+        self.change_display_button = QPushButton("Advanced", self)
         self.change_unit_button = QPushButton("°C", self)
         self.change_unit_button.hide()
+
         self.temperature_label = QLabel(self)
         self.emoji_label = QLabel(self)
         self.description_label = QLabel(self)
-        self.change_display_button = QPushButton("Advanced", self)
+        self.temperature_label_advanced = QLabel(self)
+        self.emoji_label_advanced = QLabel(self)
+        self.description_label_advanced = QLabel(self)
+
 
         self.feels_like_label = QLabel(self)
-        self.temp_range_label = QLabel(self)
+        self.temp_min_label = QLabel(self)
+        self.temp_max_label = QLabel(self)
         self.pressure_label = QLabel(self)
         self.visibility_label = QLabel(self)
         self.wind_direction_label = QLabel(self)
@@ -52,9 +59,12 @@ class WeatherApp(QWidget):
         self.country_label = QLabel(self)
         self.local_time_label = QLabel(self)
 
-        self.wind_speed_label = QLabel(self)
-        self.humidity_label = QLabel(self)
         self.clouds_label = QLabel(self)
+        self.humidity_label = QLabel(self)
+        self.wind_speed_label = QLabel(self)
+        self.clouds_label_advanced = QLabel(self)
+        self.humidity_label_advanced = QLabel(self)
+        self.wind_speed_label_advanced = QLabel(self)
 
         self.stacked_widget = QStackedWidget(self)
 
@@ -73,7 +83,8 @@ class WeatherApp(QWidget):
 
         # for label in [
         #     self.feels_like_label,
-        #     self.temp_range_label,
+        #     self.temp_min_label,
+        #     self.temp_max_label,
         #     self.pressure_label,
         #     self.visibility_label,
         #     self.wind_direction_label,
@@ -87,9 +98,12 @@ class WeatherApp(QWidget):
         #     label.setAlignment(Qt.AlignCenter)
         #     label.setWordWrap(True)
 
-        self.wind_speed_label.setAlignment(Qt.AlignCenter)
-        self.humidity_label.setAlignment(Qt.AlignCenter)
         self.clouds_label.setAlignment(Qt.AlignCenter)
+        self.humidity_label.setAlignment(Qt.AlignCenter)
+        self.wind_speed_label.setAlignment(Qt.AlignCenter)
+        self.clouds_label_advanced.setAlignment(Qt.AlignCenter)
+        self.humidity_label_advanced.setAlignment(Qt.AlignCenter)
+        self.wind_speed_label_advanced.setAlignment(Qt.AlignCenter)
 
         self.city_label.setAlignment(Qt.AlignCenter)
         self.city_input.setAlignment(Qt.AlignCenter)
@@ -97,9 +111,18 @@ class WeatherApp(QWidget):
         self.emoji_label.setAlignment(Qt.AlignCenter)
         self.description_label.setAlignment(Qt.AlignCenter)
 
-        self.wind_speed_label.setFixedSize(100, 50)
-        self.humidity_label.setFixedSize(100, 50)
+        self.temperature_label_advanced.setAlignment(Qt.AlignCenter)
+        self.emoji_label_advanced.setAlignment(Qt.AlignCenter)
+        self.description_label_advanced.setAlignment(Qt.AlignCenter)
+
         self.clouds_label.setFixedSize(100, 50)
+        self.humidity_label.setFixedSize(100, 50)
+        self.wind_speed_label.setFixedSize(100, 50)
+        self.clouds_label_advanced.setFixedSize(100, 50)
+        self.humidity_label_advanced.setFixedSize(100, 50)
+        self.wind_speed_label_advanced.setFixedSize(100, 50)
+
+
         self.change_unit_button.setFixedSize(30, 30)
         self.change_display_button.setFixedSize(100, 30)
 
@@ -114,6 +137,12 @@ class WeatherApp(QWidget):
         secondary_layout.addWidget(self.humidity_label)
         secondary_layout.addWidget(self.clouds_label)
 
+        secondary_layout_advanced = QHBoxLayout()
+        secondary_layout_advanced.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+        secondary_layout_advanced.addWidget(self.wind_speed_label_advanced)
+        secondary_layout_advanced.addWidget(self.humidity_label_advanced)
+        secondary_layout_advanced.addWidget(self.clouds_label_advanced)
+
         input_layout = QVBoxLayout()
         input_layout.addWidget(self.city_label)
         input_layout.addWidget(self.city_input)
@@ -127,13 +156,10 @@ class WeatherApp(QWidget):
         self.compact_widget.setLayout(compact_layout)
 
         advanced_layout = QVBoxLayout()
-        # advanced_layout.addWidget(self.city_label)
-        # advanced_layout.addWidget(self.city_input)
-        # advanced_layout.addWidget(self.get_weather_button)
-        # advanced_layout.addWidget(self.temperature_label)
-        # advanced_layout.addWidget(self.emoji_label)
-        # advanced_layout.addLayout(secondary_layout)
-        # advanced_layout.addWidget(self.description_label)
+        advanced_layout.addWidget(self.temperature_label_advanced)
+        advanced_layout.addWidget(self.emoji_label_advanced)
+        advanced_layout.addLayout(secondary_layout_advanced)
+        advanced_layout.addWidget(self.description_label_advanced)
         self.advanced_widget.setLayout(advanced_layout)
 
         self.stacked_widget.addWidget(self.compact_widget)
@@ -151,20 +177,32 @@ class WeatherApp(QWidget):
         self.get_weather_button.setObjectName("get_weather_button")
         self.change_unit_button.setObjectName("change_unit_button")
         self.temperature_label.setObjectName("temperature_label")
+        self.temperature_label_advanced.setObjectName("temperature_label_advanced")
         self.emoji_label.setObjectName("emoji_label")
+        self.emoji_label_advanced.setObjectName("emoji_label_advanced")
         self.description_label.setObjectName("description_label")
-        self.wind_speed_label.setObjectName("wind_speed_label")
-        self.humidity_label.setObjectName("humidity_label")
+        self.description_label_advanced.setObjectName("description_label_advanced")
         self.clouds_label.setObjectName("clouds_label")
+        self.clouds_label_advanced.setObjectName("clouds_label_advanced")
+        self.humidity_label.setObjectName("humidity_label")
+        self.humidity_label_advanced.setObjectName("humidity_label_advanced")
+        self.wind_speed_label.setObjectName("wind_speed_label")
+        self.wind_speed_label_advanced.setObjectName("wind_speed_label_advanced")
         self.change_display_button.setObjectName("change_display_button")
 
 
         self.add_text_shadow(self.city_label, Qt.white, (0, 0), 50)
         self.add_text_shadow(self.temperature_label)
+        self.add_text_shadow(self.temperature_label_advanced)
         self.add_text_shadow(self.description_label)
-        self.add_text_shadow(self.wind_speed_label)
-        self.add_text_shadow(self.humidity_label)
+        self.add_text_shadow(self.description_label_advanced)
+
         self.add_text_shadow(self.clouds_label)
+        self.add_text_shadow(self.clouds_label_advanced)
+        self.add_text_shadow(self.humidity_label)
+        self.add_text_shadow(self.humidity_label_advanced)
+        self.add_text_shadow(self.wind_speed_label)
+        self.add_text_shadow(self.wind_speed_label_advanced)
 
         self.setStyleSheet("""
             QLabel, QPushButton{
@@ -185,18 +223,18 @@ class WeatherApp(QWidget):
                 font-size: 20px;
                 font-style: italic;
             }
-            QLabel#temperature_label{
+            QLabel#temperature_label, QLabel#temperature_label_advanced{
                 font-size: 75px;
                 padding-right: 10px;
             }
-            QLabel#emoji_label{
+            QLabel#emoji_label, QLabel#emoji_label_advanced{
                 font-size: 100px;
                 font-family: Segoe UI emoji;
             }
-            QLabel#description_label{
+            QLabel#description_label, QLabel#description_label_advanced{
                 font-size: 50px;
             }
-            QLabel#wind_speed_label, QLabel#humidity_label, QLabel#clouds_label{
+            QLabel#wind_speed_label, QLabel#humidity_label, QLabel#clouds_label, QLabel#wind_speed_label_advanced, QLabel#humidity_label_advanced, QLabel#clouds_label_advanced{
                 font-size: 20px;
                 font-weight: bold;
                 padding: 0px 1px 0px 1px;
@@ -257,11 +295,18 @@ class WeatherApp(QWidget):
         url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}"
 
         self.temperature_label.setText("")
+        self.temperature_label_advanced.setText("")
         self.emoji_label.clear()
+        self.emoji_label_advanced.clear()
         self.description_label.clear()
-        self.wind_speed_label.clear()
-        self.humidity_label.clear()
+        self.description_label_advanced.clear()
         self.clouds_label.clear()
+        self.humidity_label.clear()
+        self.wind_speed_label.clear()
+        self.clouds_label_advanced.clear()
+        self.humidity_label_advanced.clear()
+        self.wind_speed_label_advanced.clear()
+
         self.change_unit_button.hide()
 
         self.get_weather_button.setEnabled(False)
@@ -317,11 +362,17 @@ class WeatherApp(QWidget):
     def display_error(self, message):
         self.temperature_label.setStyleSheet("font-size: 30px;")
         self.temperature_label.setText(message)
+        self.temperature_label_advanced.setText(message)
         self.emoji_label.clear()
+        self.emoji_label_advanced.clear()
         self.description_label.clear()
-        self.wind_speed_label.clear()
-        self.humidity_label.clear()
+        self.description_label_advanced.clear()
         self.clouds_label.clear()
+        self.humidity_label.clear()
+        self.wind_speed_label.clear()
+        self.clouds_label_advanced.clear()
+        self.humidity_label_advanced.clear()
+        self.wind_speed_label_advanced.clear()
         self.change_unit_button.hide()
 
     def display_weather(self):
@@ -332,14 +383,20 @@ class WeatherApp(QWidget):
             weather_id = self.weather_data["weather"][0]["id"]
             weather_description = self.weather_data["weather"][0]["description"]
             self.emoji_label.setText(self.get_weather_emoji(weather_id))
+            self.emoji_label_advanced.setText(self.get_weather_emoji(weather_id))
             self.description_label.setText(weather_description.capitalize())
+            self.description_label_advanced.setText(weather_description.capitalize())
 
-            self.wind_speed_label.setText(f"Wind\n{self.weather_data["wind"]["speed"]}")
-            self.humidity_label.setText(f"Humidity\n{self.weather_data['main']['humidity']}%")
             self.clouds_label.setText(f"Clouds\n{self.weather_data['clouds']['all']}%")
+            self.humidity_label.setText(f"Humidity\n{self.weather_data['main']['humidity']}%")
+            self.wind_speed_label.setText(f"Wind\n{self.weather_data["wind"]["speed"]}")
+            self.clouds_label_advanced.setText(f"Clouds\n{self.weather_data['clouds']['all']}%")
+            self.humidity_label_advanced.setText(f"Humidity\n{self.weather_data['main']['humidity']}%")
+            self.wind_speed_label_advanced.setText(f"Wind\n{self.weather_data["wind"]["speed"]}")
 
             self.change_unit_button.show()
             self.temperature_label.setStyleSheet("font-size: 75px;")
+            self.temperature_label_advanced.setStyleSheet("font-size: 75px;")
             def convert_to_c(temp):
                 return temp - 273.15
             def convert_to_f(temp):
@@ -347,15 +404,19 @@ class WeatherApp(QWidget):
             if self.unit_is_fahrenheit:
                 self.temperature_label.setText(f"{convert_to_f(self.weather_data['main']['temp']):.0f}°F")
                 self.wind_speed_label.setText(f"Wind\n{self.weather_data['wind']['speed'] * 2.237:.1f} mph")
+                self.wind_speed_label_advanced.setText(f"Wind\n{self.weather_data['wind']['speed'] * 2.237:.1f} mph")
                 # self.feels_like_label.setText(f"Feels Like\n{convert_to_f(self.weather_data['main']['feels_like']):.0f}°F")
-                # self.temp_range_label.setText(
-                #     f"Temp Min\n{convert_to_f(self.weather_data['main']['temp_min']):.0f}°F\nTemp Max\n{convert_to_f(self.weather_data['main']['temp_max']):.0f}°F")
+                # self.temp_min_label.setText(f"Temp Min\n{convert_to_f(self.weather_data['main']['temp_min']):.0f}°F")
+                # self.temp_max_label.setText(f"Temp Max\n{convert_to_f(self.weather_data['main']['temp_max']):.0f}°F")
+                self.temperature_label_advanced.setText(f"{convert_to_f(self.weather_data['main']['temp']):.0f}°F")
             else:
                 self.temperature_label.setText(f"{convert_to_c(self.weather_data['main']['temp']):.1f}°C")
                 self.wind_speed_label.setText(f"Wind\n{self.weather_data['wind']['speed']:.1f} m/s")
+                self.wind_speed_label_advanced.setText(f"Wind\n{self.weather_data['wind']['speed'] * 2.237:.1f} mph")
                 # self.feels_like_label.setText(f"Feels Like\n{convert_to_c(self.weather_data['main']['feels_like']):.1f}°C")
-                # self.temp_range_label.setText(
-                #     f"Temp Min\n{convert_to_c(self.weather_data['main']['temp_min']):.1f}°C\nTemp Max\n{convert_to_c(self.weather_data['main']['temp_max']):.1f}°C")
+                # self.temp_min_label.setText(f"Temp Min\n{convert_to_c(self.weather_data['main']['temp_min']):.1f}°C")
+                # self.temp_max_label.setText(f"Temp Max\n{convert_to_c(self.weather_data['main']['temp_max']):.1f}°C")
+                self.temperature_label_advanced.setText(f"{convert_to_c(self.weather_data['main']['temp']):.1f}°C")
         else:
             self.change_unit_button.hide()
 
