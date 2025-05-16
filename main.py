@@ -5,7 +5,7 @@ import datetime
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, \
     QGraphicsDropShadowEffect, QStackedWidget, QGraphicsOpacityEffect
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QPainter, QLinearGradient, QColor, QBrush
+from PyQt5.QtGui import QPainter, QLinearGradient, QColor, QBrush, QPixmap, QImage
 
 class WeatherApp(QWidget):
     WEATHER_GRADIENTS = {
@@ -80,6 +80,7 @@ class WeatherApp(QWidget):
     def initUI(self):
         self.setAutoFillBackground(True)
         self.setWindowTitle("Weather App")
+        self.setFixedSize(420, 720)
 
         for label in [
             self.feels_like_label,
@@ -121,15 +122,14 @@ class WeatherApp(QWidget):
         self.clouds_label.setFixedSize(100, 50)
         self.humidity_label.setFixedSize(100, 50)
         self.wind_speed_label.setFixedSize(100, 50)
-        self.clouds_label_advanced.setFixedSize(100, 50)
-        self.humidity_label_advanced.setFixedSize(100, 50)
-        self.wind_speed_label_advanced.setFixedSize(100, 50)
         self.change_unit_button.setFixedSize(30, 30)
         self.change_display_button.setFixedSize(100, 30)
 
         # FOR BOTH LAYOUTS
         bottom_button_layout = QHBoxLayout()
         bottom_button_layout.addWidget(self.change_unit_button, alignment=Qt.AlignLeft)
+        bottom_button_layout.spacing()
+        bottom_button_layout.addWidget(self.country_label)
         bottom_button_layout.spacing()
         bottom_button_layout.addWidget(self.change_display_button, alignment=Qt.AlignRight)
 
@@ -538,8 +538,20 @@ class WeatherApp(QWidget):
             self.wind_direction_label.setText(
                 f"Wind Direction\n{get_direction_arrow(self.weather_data['wind']['deg'])} {self.weather_data['wind']['deg']}°")
             # self.coordinates_label.setText(f"Coords\n{self.weather_data['coord']['lat']}, {self.weather_data['coord']['lon']}")
-            # self.country_label.setText(f"Country\n{self.weather_data['sys']['country']}")
-            # REMOVED CURRENT LOCAL TIME, NEED TO SWITCH TO USE DT
+
+            url = f"https://flagcdn.com/h24/{self.weather_data['sys']['country'].lower()}.png"
+            try:
+                response = requests.get(url, timeout=5)
+                response.raise_for_status()
+                image_data = response.content
+                image = QImage()
+                if image.loadFromData(image_data):
+                    pixmap = QPixmap.fromImage(image)
+                    self.country_label.setPixmap(pixmap)
+                else:
+                    print("Flag didn't load")
+            except Exception as e:
+                print(f"Error loading flag: {e}")
             self.dt_label.setText(f"Data collected @ {datetime.datetime.fromtimestamp(self.weather_data['dt']).strftime('%I:%M %p, %B %d, %Y')}")
         else:
             self.change_unit_button.hide()
