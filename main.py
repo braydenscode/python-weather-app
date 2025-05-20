@@ -13,9 +13,12 @@ class WeatherApp(QWidget):
         "Clear_night": ("#112159", "#93659F"),
         "Clouds_day": ("#d7d2cc", "#304352"),
         "Clouds_night": ("#112159", "#6f7675"),
-        "Rain": ("#4e54c8", "#8f94fb"),
-        "Drizzle": ("#89f7fe", "#66a6ff"),
-        "Thunderstorm": ("#373B44", "#4286f4"),
+        "Rain_day": ("#4e54c8", "#8f94fb"),
+        "Rain_night": ("#112159", "#4e54c8"),
+        "Drizzle_day": ("#89f7fe", "#66a6ff"),
+        "Drizzle_night": ("#112159", "#66a6ff"),
+        "Thunderstorm_day": ("#373B44", "#4286f4"),
+        "Thunderstorm_night": ("#272930", "#245BB2"),
         "Snow": ("#e0eafc", "#cfdef3"),
         "Mist": ("#d3cce3", "#e9e4f0"),
         "Fog": ("#d3cce3", "#e9e4f0"),
@@ -329,6 +332,12 @@ class WeatherApp(QWidget):
                 key = "Clear_day" if self.is_daytime else "Clear_night"
             elif weather_main == "Clouds":
                 key = "Clouds_day" if self.is_daytime else "Clouds_night"
+            elif weather_main == "Rain":
+                key = "Rain_day" if self.is_daytime else "Rain_night"
+            elif weather_main == "Drizzle":
+                key = "Drizzle_day" if self.is_daytime else "Drizzle_night"
+            elif weather_main == "Thunderstorm":
+                key = "Thunderstorm_day" if self.is_daytime else "Thunderstorm_night"
             else:
                 key = weather_main
 
