@@ -6,6 +6,8 @@ from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QPushButto
     QGraphicsDropShadowEffect, QStackedWidget, QGraphicsOpacityEffect
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPainter, QLinearGradient, QColor, QBrush, QPixmap, QImage
+import mysql.connector as mc
+import json
 
 class WeatherApp(QWidget):
     WEATHER_GRADIENTS = {
@@ -72,6 +74,7 @@ class WeatherApp(QWidget):
         self.advanced_widget = QWidget()
 
         self.initUI()
+        self.db_connection = self.db_connect()
 
         self.weather_data = None
         self.unit_is_fahrenheit = True
@@ -394,6 +397,7 @@ class WeatherApp(QWidget):
                 print(data)
                 self.weather_data = data
                 self.display_weather()
+                self.save_weather_to_db(self.transform_weather_json(self.weather_data))
 
         except requests.exceptions.HTTPError as http_error:
             match response.status_code:
@@ -504,7 +508,7 @@ class WeatherApp(QWidget):
                 self.temperature_label.setText(f"{convert_to_f(self.weather_data['main']['temp']):.0f}°F")
                 self.wind_speed_label.setText(f"Wind\n{self.weather_data['wind']['speed'] * 2.237:.1f} mph")
                 self.wind_speed_label_advanced.setText(f"Wind Speed\n{self.weather_data['wind']['speed'] * 2.237:.1f} mph")
-                self.feels_like_temp_label.setText(f"Feels like\n{convert_to_f(self.weather_data['main']['feels_like']):.0f}°")
+                self.feels_like_temp_label.setText(f"Feels Like\n{convert_to_f(self.weather_data['main']['feels_like']):.0f}°")
                 self.temp_min_label.setText(f"{convert_to_f(self.weather_data['main']['temp_min']):.0f}°")
                 self.temp_max_label.setText(f"{convert_to_f(self.weather_data['main']['temp_max']):.0f}°")
                 self.temperature_label_advanced.setText(f"{convert_to_f(self.weather_data['main']['temp']):.0f}°F")
@@ -518,7 +522,7 @@ class WeatherApp(QWidget):
                 self.temperature_label.setText(f"{convert_to_c(self.weather_data['main']['temp']):.0f}°C")
                 self.wind_speed_label.setText(f"Wind\n{self.weather_data['wind']['speed']:.1f} m/s")
                 self.wind_speed_label_advanced.setText(f"Wind Speed\n{self.weather_data['wind']['speed']:.1f} m/s")
-                self.feels_like_temp_label.setText(f"Feels like\n{convert_to_c(self.weather_data['main']['feels_like']):.0f}°")
+                self.feels_like_temp_label.setText(f"Feels Like\n{convert_to_c(self.weather_data['main']['feels_like']):.0f}°")
                 self.temp_min_label.setText(f"{convert_to_c(self.weather_data['main']['temp_min']):.0f}°")
                 self.temp_max_label.setText(f"{convert_to_c(self.weather_data['main']['temp_max']):.0f}°")
                 self.temperature_label_advanced.setText(f"{convert_to_c(self.weather_data['main']['temp']):.0f}°C")
@@ -602,6 +606,86 @@ class WeatherApp(QWidget):
             return "☁"
         else:
             return ""
+
+    def transform_weather_json(self, json_data):
+        return {
+            "location_id": json_data["id"],
+            "weather_id": json_data["weather"][0]["id"],
+            "weather_main": json_data["weather"][0]["main"],
+            "weather_description": json_data["weather"][0]["description"],
+            "temp": json_data["main"]["temp"],
+            "feels_like": json_data["main"]["feels_like"],
+            "temp_min": json_data["main"]["temp_min"],
+            "temp_max": json_data["main"]["temp_max"],
+            "pressure": json_data["main"]["pressure"],
+            "humidity": json_data["main"]["humidity"],
+            "visibility": json_data.get("visibility", None),
+            "wind_speed": json_data["wind"]["speed"],
+            "wind_dir": json_data["wind"].get("deg", None),
+            "wind_gust": json_data["wind"].get("gust", None),
+            "clouds": json_data["clouds"]["all"],
+            "sunrise": json_data["sys"]["sunrise"],
+            "sunset": json_data["sys"]["sunset"],
+            "dt": json_data["dt"],
+            "raw_json": json.dumps(json_data)
+        }
+
+    def db_connect(self):
+        try:
+            mydb = mc.connect(  host="localhost",
+                                user="weather_app",
+                                password=os.getenv("DB_PASS"),
+                                database="weather_app",
+                                use_pure=True)
+
+            if mydb.is_connected():
+                print("Connected to MySQL database")
+                return mydb
+        except Exception as e:
+            print(f"Error connecting to database: {e}")
+            return None
+
+    def save_weather_to_db(self, transformed_data):
+        try:
+            cursor = self.db_connection.cursor()
+            cursor.execute("SELECT id FROM locations WHERE id = %s", (transformed_data["location_id"],))
+            result = cursor.fetchone()
+
+            if not result:
+                cursor.execute("""
+                    INSERT INTO locations (id, name, country, lat, lon, timezone)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (
+                    self.weather_data["id"],
+                    self.weather_data["name"],
+                    self.weather_data["sys"]["country"],
+                    self.weather_data['coord']['lat'],
+                    self.weather_data['coord']['lon'],
+                    self.weather_data["timezone"]
+                ))
+                self.db_connection.commit()
+
+            insert_query = """
+                INSERT INTO weather_data (
+                    location_id, weather_id, weather_main, weather_description, temp,
+                    feels_like, temp_min, temp_max, pressure, humidity, visibility,
+                    wind_speed, wind_dir, wind_gust, clouds, sunrise, sunset, dt, raw_json
+                ) VALUES (
+                    %(location_id)s, %(weather_id)s, %(weather_main)s, %(weather_description)s,
+                    %(temp)s, %(feels_like)s, %(temp_min)s, %(temp_max)s,
+                    %(pressure)s, %(humidity)s, %(visibility)s,
+                    %(wind_speed)s, %(wind_dir)s, %(wind_gust)s, %(clouds)s,
+                    %(sunrise)s, %(sunset)s, %(dt)s, %(raw_json)s
+                )
+            """
+
+            cursor.execute(insert_query, transformed_data)
+            self.db_connection.commit()
+            cursor.close()
+            print("Data saved to DB.")
+
+        except mc.Error as e:
+            print(f"SQL Error: {e}")
 
 
 if __name__ == "__main__":
