@@ -541,6 +541,8 @@ class WeatherApp(QWidget):
                 f"Sunset\n{datetime.datetime.fromtimestamp(self.weather_data['sys']['sunset'], tz=timezone).strftime('%H:%M')}")
             self.wind_direction_label.setText(
                 f"Wind Direction\n{get_direction_arrow(self.weather_data['wind']['deg'])} {self.weather_data['wind']['deg']}°")
+            self.dt_label.setText(
+                f"Data collected @ {datetime.datetime.fromtimestamp(self.weather_data['dt']).strftime('%I:%M %p, %B %d, %Y')}")
 
             # not using. might add search location by clicking point on map and searching with coords
             # self.coordinates_label.setText(f"Coords\n{self.weather_data['coord']['lat']}, {self.weather_data['coord']['lon']}")
@@ -558,7 +560,6 @@ class WeatherApp(QWidget):
                     print("Flag didn't load")
             except Exception as e:
                 print(f"Error loading flag: {e}")
-            self.dt_label.setText(f"Data collected @ {datetime.datetime.fromtimestamp(self.weather_data['dt']).strftime('%I:%M %p, %B %d, %Y')}")
         else:
             self.change_unit_button.hide()
 
@@ -608,6 +609,8 @@ class WeatherApp(QWidget):
             return ""
 
     def transform_weather_json(self, json_data):
+        tz_offset = json_data.get("timezone", 0)
+        tz = datetime.timezone(datetime.timedelta(seconds=tz_offset))
         return {
             "location_id": json_data["id"],
             "weather_id": json_data["weather"][0]["id"],
@@ -624,9 +627,9 @@ class WeatherApp(QWidget):
             "wind_dir": json_data["wind"].get("deg", None),
             "wind_gust": json_data["wind"].get("gust", None),
             "clouds": json_data["clouds"]["all"],
-            "sunrise": json_data["sys"]["sunrise"],
-            "sunset": json_data["sys"]["sunset"],
-            "dt": json_data["dt"],
+            "sunrise": datetime.datetime.fromtimestamp(json_data['sys']['sunrise'], tz=tz).strftime('%H:%M:%S'),
+            "sunset": datetime.datetime.fromtimestamp(json_data['sys']['sunset'], tz=tz).strftime('%H:%M:%S'),
+            "dt": datetime.datetime.fromtimestamp(json_data['dt']),
             "raw_json": json.dumps(json_data)
         }
 
