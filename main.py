@@ -3,13 +3,14 @@ import os
 import requests
 import datetime
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, \
-    QGraphicsDropShadowEffect, QStackedWidget, QGraphicsOpacityEffect
+    QGraphicsDropShadowEffect, QStackedWidget, QGraphicsOpacityEffect, QMainWindow, QDockWidget, QTableWidget, \
+    QTableWidgetItem
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QPainter, QLinearGradient, QColor, QBrush, QPixmap, QImage
+from PyQt5.QtGui import QPainter, QLinearGradient, QColor, QBrush, QPixmap, QImage, QCursor
 import mysql.connector as mc
 import json
 
-class WeatherApp(QWidget):
+class WeatherApp(QMainWindow):
     WEATHER_GRADIENTS = {
         "Clear_day": ("#fceabb", "#f8b500"),
         "Clear_night": ("#112159", "#93659F"),
@@ -41,7 +42,9 @@ class WeatherApp(QWidget):
 
         self.change_display_button = QPushButton("Advanced", self)
         self.change_unit_button = QPushButton("°C", self)
-        self.change_unit_button.hide()
+
+        self.map_button = QPushButton("🗺️", self)
+        self.database_button = QPushButton("📝", self)
 
         self.temperature_label = QLabel(self)
         self.emoji_label = QLabel(self)
@@ -73,17 +76,20 @@ class WeatherApp(QWidget):
         self.compact_widget = QWidget()
         self.advanced_widget = QWidget()
 
-        self.initUI()
-        self.db_connection = self.db_connect()
+        self.db_dock = None
 
         self.weather_data = None
         self.unit_is_fahrenheit = True
         self.is_daytime = None
 
+        self.initUI()
+        self.db_connection = self.db_connect()
+        self.toggle_db_dock()
+
     def initUI(self):
         self.setAutoFillBackground(True)
         self.setWindowTitle("Weather App")
-        self.setFixedSize(420, 720)
+        self.setMinimumSize(420, 720)
 
         for label in [
             self.feels_like_temp_label,
@@ -123,6 +129,8 @@ class WeatherApp(QWidget):
         self.wind_speed_label.setFixedSize(100, 50)
         self.change_unit_button.setFixedSize(30, 30)
         self.change_display_button.setFixedSize(100, 30)
+        self.map_button.setFixedSize(40, 40)
+        self.database_button.setFixedSize(40, 40)
 
         # FOR BOTH LAYOUTS
         bottom_button_layout = QHBoxLayout()
@@ -132,8 +140,13 @@ class WeatherApp(QWidget):
         bottom_button_layout.spacing()
         bottom_button_layout.addWidget(self.change_display_button, alignment=Qt.AlignRight)
 
+        top_row_layout = QHBoxLayout()
+        top_row_layout.addWidget(self.map_button)
+        top_row_layout.addWidget(self.city_label)
+        top_row_layout.addWidget(self.database_button)
+
         input_layout = QVBoxLayout()
-        input_layout.addWidget(self.city_label)
+        input_layout.addLayout(top_row_layout)
         input_layout.addWidget(self.city_input)
         input_layout.addWidget(self.get_weather_button)
 
@@ -207,11 +220,18 @@ class WeatherApp(QWidget):
         main_layout.addLayout(bottom_button_layout)
         self.setLayout(main_layout)
 
+        central_widget = QWidget()
+        central_widget.setLayout(main_layout)
+        central_widget.setFixedSize(420, 720)
+        self.setCentralWidget(central_widget)
+
         self.city_label.setObjectName("city_label")
         self.city_input.setObjectName("city_input")
         self.get_weather_button.setObjectName("get_weather_button")
         self.change_unit_button.setObjectName("change_unit_button")
         self.change_display_button.setObjectName("change_display_button")
+        self.map_button.setObjectName("map_button")
+        self.database_button.setObjectName("database_button")
         self.temperature_label.setObjectName("temperature_label")
         self.temperature_label_advanced.setObjectName("temperature_label_advanced")
         self.emoji_label.setObjectName("emoji_label")
@@ -296,12 +316,16 @@ class WeatherApp(QWidget):
                 font-size: 20px;
                 padding: 0px 1px 0px 1px;
             }
+            QPushButton#map_button, QPushButton#database_button{
+                font-size: 20px;
+            }
         """)
 
         self.city_input.returnPressed.connect(self.get_weather)
         self.get_weather_button.clicked.connect(self.get_weather)
         self.change_unit_button.clicked.connect(self.change_unit)
         self.change_display_button.clicked.connect(self.change_display)
+        self.database_button.clicked.connect(self.toggle_db_dock)
 
     def add_text_shadow(self, label, color=Qt.white, offset=(0, 0), blur_radius=8):
         shadow = QGraphicsDropShadowEffect(self)
@@ -382,8 +406,6 @@ class WeatherApp(QWidget):
         self.feels_like_temp_label.clear()
         self.country_label.clear()
 
-        self.change_unit_button.hide()
-
         self.get_weather_button.setEnabled(False)
         self.change_unit_button.setEnabled(False)
         self.change_display_button.setEnabled(False)
@@ -460,7 +482,6 @@ class WeatherApp(QWidget):
         self.temp_max_label.clear()
         self.feels_like_temp_label.clear()
         self.country_label.clear()
-        self.change_unit_button.hide()
 
     def display_weather(self):
         if self.weather_data:
@@ -488,7 +509,6 @@ class WeatherApp(QWidget):
             self.clouds_label_advanced.setText(f"Clouds\n{self.weather_data['clouds']['all']}%")
             self.humidity_label_advanced.setText(f"Humidity\n{self.weather_data['main']['humidity']}%")
 
-            self.change_unit_button.show()
             self.temperature_label.setStyleSheet("font-size: 75px;")
             self.temperature_label_advanced.setStyleSheet("font-size: 75px;")
 
@@ -561,13 +581,16 @@ class WeatherApp(QWidget):
             except Exception as e:
                 print(f"Error loading flag: {e}")
         else:
-            self.change_unit_button.hide()
+            print("Missing weather data.")
 
 
     def change_unit(self):
         self.unit_is_fahrenheit = not self.unit_is_fahrenheit
         self.change_unit_button.setText("°F" if not self.unit_is_fahrenheit else "°C")
-        self.display_weather()
+        if self.weather_data:
+            self.display_weather()
+        if self.db_dock and self.db_dock.isVisible():
+            self.load_saved_weather_data()
 
     def change_display(self):
         current_index = self.stacked_widget.currentIndex()
@@ -632,6 +655,79 @@ class WeatherApp(QWidget):
             "dt": datetime.datetime.fromtimestamp(json_data['dt']),
             "raw_json": json.dumps(json_data)
         }
+
+    def toggle_db_dock(self):
+        if self.db_dock is None:
+            self.db_dock = QDockWidget("Saved Weather Data", self)
+            self.db_dock.setAllowedAreas(Qt.RightDockWidgetArea)
+            self.db_dock.setMinimumWidth(450)
+
+            db_dock_widget = QWidget()
+            self.db_dock_layout = QVBoxLayout(db_dock_widget)
+
+            self.weather_table = QTableWidget()
+            self.weather_table.setColumnCount(7)
+            self.weather_table.setHorizontalHeaderLabels(["City", "Temp", "Weather", "Clouds", "Humidity", "Wind", "Time Collected"])
+            self.db_dock_layout.addWidget(self.weather_table)
+
+            self.db_dock.setWidget(db_dock_widget)
+            self.addDockWidget(Qt.RightDockWidgetArea, self.db_dock)
+
+            self.db_dock.setVisible(False)
+
+            self.db_dock.setFeatures(QDockWidget.DockWidgetClosable | QDockWidget.DockWidgetMovable)
+            self.db_dock.visibilityChanged.connect(self.adjust_window_size)
+
+            self.load_saved_weather_data()
+        else:
+            is_visible = self.db_dock.isVisible()
+            self.db_dock.setVisible(not is_visible)
+            if not is_visible:
+                self.load_saved_weather_data()
+
+    def adjust_window_size(self, visible):
+        if visible and not self.db_dock.isFloating():
+            self.setMinimumWidth(420 + self.db_dock.minimumWidth() + 40)
+        else:
+            self.setMinimumWidth(420)
+            self.resize(420, 720)
+
+    def load_saved_weather_data(self):
+        cursor = self.db_connection.cursor()
+        cursor.execute("""
+        SELECT l.name, wd.temp, wd.weather_main, wd.clouds, wd.humidity, wd.wind_speed, wd.dt
+        FROM weather_data wd
+        JOIN locations l ON wd.location_id = l.id
+        ORDER BY wd.dt DESC
+        LIMIT 50
+    """)
+        rows = cursor.fetchall()
+        self.weather_table.setRowCount(len(rows))
+
+        for row_i, row_data in enumerate(rows):
+            for col_i, value in enumerate(row_data):
+                if col_i == 1:
+                    temp_k = float(value)
+                    if self.unit_is_fahrenheit:
+                        value = f"{(temp_k * 9 / 5) - 459.67:.1f}°F"
+                    else:
+                        value = f"{temp_k - 273.15:.1f}°C"
+                elif col_i == 2:
+                    value = value.title()
+                elif col_i == 3 or col_i == 4:
+                    value = f"{value}%"
+                elif col_i == 5:
+                    if self.unit_is_fahrenheit:
+                        value = f"{value * 2.237:.1f} mph"
+                    else:
+                        value = f"{value :.1f} m/s"
+                elif col_i == 6:
+                    value = value.strftime("%H:%M | %m/%d/%y")
+
+                self.weather_table.setItem(row_i, col_i, QTableWidgetItem(str(value)))
+
+        self.weather_table.resizeColumnsToContents()
+        cursor.close()
 
     def db_connect(self):
         try:
