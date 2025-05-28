@@ -65,6 +65,7 @@ class WeatherApp(QMainWindow):
         self.sunset_label = QLabel(self)
         self.country_label = QLabel(self)
         self.dt_label = QLabel(self)
+        self.dt_label_advanced = QLabel(self)
         self.clouds_label = QLabel(self)
         self.humidity_label = QLabel(self)
         self.wind_speed_label = QLabel(self)
@@ -76,6 +77,7 @@ class WeatherApp(QMainWindow):
         self.compact_widget = QWidget()
         self.advanced_widget = QWidget()
 
+        self.map_dock = None
         self.db_dock = None
 
         self.weather_data = None
@@ -104,6 +106,7 @@ class WeatherApp(QMainWindow):
             self.sunset_label,
             self.country_label,
             self.dt_label,
+            self.dt_label_advanced
         ]:
             label.setAlignment(Qt.AlignCenter)
 
@@ -194,8 +197,12 @@ class WeatherApp(QMainWindow):
         compact_layout = QVBoxLayout()
         compact_layout.addWidget(self.temperature_label)
         compact_layout.addWidget(self.emoji_label)
+        compact_layout.addStretch()
         compact_layout.addWidget(self.description_label)
+        compact_layout.addStretch()
         compact_layout.addLayout(secondary_layout)
+        compact_layout.addStretch()
+        compact_layout.addWidget(self.dt_label)
         self.compact_widget.setLayout(compact_layout)
 
         # ADVANCED LAYOUT
@@ -205,7 +212,8 @@ class WeatherApp(QMainWindow):
         advanced_layout.addWidget(self.description_label_advanced)
         advanced_layout.addLayout(secondary_layout_advanced)
         advanced_layout.addLayout(wind_layout)
-        advanced_layout.addWidget(self.dt_label)
+        advanced_layout.addStretch()
+        advanced_layout.addWidget(self.dt_label_advanced)
         self.advanced_widget.setLayout(advanced_layout)
 
         # STACKED WIDGET
@@ -254,6 +262,7 @@ class WeatherApp(QMainWindow):
         self.sunrise_label.setObjectName("sunrise_label")
         self.sunset_label.setObjectName("sunset_label")
         self.dt_label.setObjectName("dt_label")
+        self.dt_label_advanced.setObjectName("dt_label_advanced")
 
         self.add_text_shadow(self.city_label, Qt.white, (0, 0), 50)
         self.add_text_shadow(self.temperature_label)
@@ -325,6 +334,7 @@ class WeatherApp(QMainWindow):
         self.get_weather_button.clicked.connect(self.get_weather)
         self.change_unit_button.clicked.connect(self.change_unit)
         self.change_display_button.clicked.connect(self.change_display)
+        self.map_button.clicked.connect(self.toggle_map_dock)
         self.database_button.clicked.connect(self.toggle_db_dock)
 
     def add_text_shadow(self, label, color=Qt.white, offset=(0, 0), blur_radius=8):
@@ -401,6 +411,7 @@ class WeatherApp(QMainWindow):
         self.sunrise_label.clear()
         self.sunset_label.clear()
         self.dt_label.clear()
+        self.dt_label_advanced.clear()
         self.temp_min_label.clear()
         self.temp_max_label.clear()
         self.feels_like_temp_label.clear()
@@ -478,6 +489,7 @@ class WeatherApp(QMainWindow):
         self.sunrise_label.clear()
         self.sunset_label.clear()
         self.dt_label.clear()
+        self.dt_label_advanced.clear()
         self.temp_min_label.clear()
         self.temp_max_label.clear()
         self.feels_like_temp_label.clear()
@@ -562,6 +574,8 @@ class WeatherApp(QMainWindow):
             self.wind_direction_label.setText(
                 f"Wind Direction\n{get_direction_arrow(self.weather_data['wind']['deg'])} {self.weather_data['wind']['deg']}°")
             self.dt_label.setText(
+                f"Data collected @ {datetime.datetime.fromtimestamp(self.weather_data['dt']).strftime('%I:%M %p, %B %d, %Y')}")
+            self.dt_label_advanced.setText(
                 f"Data collected @ {datetime.datetime.fromtimestamp(self.weather_data['dt']).strftime('%I:%M %p, %B %d, %Y')}")
 
             # not using. might add search location by clicking point on map and searching with coords
@@ -656,18 +670,38 @@ class WeatherApp(QMainWindow):
             "raw_json": json.dumps(json_data)
         }
 
+    def toggle_map_dock(self):
+        if self.map_dock is None:
+            self.map_dock = QDockWidget("Map", self)
+            self.map_dock.setAllowedAreas(Qt.LeftDockWidgetArea)
+            self.map_dock.setMinimumWidth(484)
+
+            map_dock_widget = QWidget()
+            self.map_dock_layout = QVBoxLayout(map_dock_widget)
+
+            self.map_label = QLabel("PLACEHOLDER, PLACE MAP HERE")
+            self.map_dock_layout.addWidget(self.map_label)
+
+            self.map_dock.setWidget(map_dock_widget)
+            self.addDockWidget(Qt.LeftDockWidgetArea, self.map_dock)
+
+            self.map_dock.visibilityChanged.connect(self.adjust_window_size)
+            self.db_dock.topLevelChanged.connect(self.on_dock_floating)
+        else:
+            self.map_dock.setVisible(not self.map_dock.isVisible())
+
     def toggle_db_dock(self):
         if self.db_dock is None:
             self.db_dock = QDockWidget("Saved Weather Data", self)
             self.db_dock.setAllowedAreas(Qt.RightDockWidgetArea)
-            self.db_dock.setMinimumWidth(450)
+            self.db_dock.setMinimumWidth(484)
 
             db_dock_widget = QWidget()
             self.db_dock_layout = QVBoxLayout(db_dock_widget)
 
             self.weather_table = QTableWidget()
-            self.weather_table.setColumnCount(7)
-            self.weather_table.setHorizontalHeaderLabels(["City", "Temp", "Weather", "Clouds", "Humidity", "Wind", "Time Collected"])
+            self.weather_table.setColumnCount(8)
+            self.weather_table.setHorizontalHeaderLabels(["City", "Temp", "Weather", "Clouds", "Humidity", "Wind", "Time Collected", ""])
             self.db_dock_layout.addWidget(self.weather_table)
 
             self.db_dock.setWidget(db_dock_widget)
@@ -675,8 +709,8 @@ class WeatherApp(QMainWindow):
 
             self.db_dock.setVisible(False)
 
-            self.db_dock.setFeatures(QDockWidget.DockWidgetClosable | QDockWidget.DockWidgetMovable)
             self.db_dock.visibilityChanged.connect(self.adjust_window_size)
+            self.db_dock.topLevelChanged.connect(self.on_dock_floating)
 
             self.load_saved_weather_data()
         else:
@@ -685,17 +719,46 @@ class WeatherApp(QMainWindow):
             if not is_visible:
                 self.load_saved_weather_data()
 
-    def adjust_window_size(self, visible):
-        if visible and not self.db_dock.isFloating():
-            self.setMinimumWidth(420 + self.db_dock.minimumWidth() + 40)
-        else:
-            self.setMinimumWidth(420)
-            self.resize(420, 720)
+    def on_dock_floating(self, floating):
+        sender = self.sender()
+        if floating:
+            sender.resize(sender.minimumWidth(), 720)
+
+    def adjust_window_size(self):
+        base_width = 420
+        total_width = base_width
+
+        if self.db_dock and self.db_dock.isVisible() and not self.db_dock.isFloating():
+            total_width += self.db_dock.minimumWidth()
+        if self.db_dock and not self.db_dock.isVisible() and self.db_dock.isFloating():
+            self.db_dock.setFloating(False)
+
+        if self.map_dock and self.map_dock.isVisible() and not self.map_dock.isFloating():
+            total_width += self.map_dock.minimumWidth()
+        if self.map_dock and not self.map_dock.isVisible() and self.map_dock.isFloating():
+            self.map_dock.setFloating(False)
+
+        self.setMinimumWidth(total_width)
+
+        if ((not self.db_dock or not self.db_dock.isVisible() or self.db_dock.isFloating()) and
+                (not self.map_dock or not self.map_dock.isVisible() or self.map_dock.isFloating())):
+            self.resize(base_width, 720)
+
+        self.resize(total_width, 720)
+
+    # def adjust_window_size(self, visible):
+        # if visible and not self.db_dock.isFloating():
+        #     self.setMinimumWidth(420 + self.db_dock.minimumWidth() + 40)
+        # elif not visible and self.db_dock.isFloating():
+        #     self.db_dock.setFloating(False)
+        # else:
+        #     self.setMinimumWidth(420)
+        #     self.resize(420, 720)
 
     def load_saved_weather_data(self):
         cursor = self.db_connection.cursor()
         cursor.execute("""
-        SELECT l.name, wd.temp, wd.weather_main, wd.clouds, wd.humidity, wd.wind_speed, wd.dt
+        SELECT l.name, wd.temp, wd.weather_main, wd.clouds, wd.humidity, wd.wind_speed, wd.dt, wd.raw_json
         FROM weather_data wd
         JOIN locations l ON wd.location_id = l.id
         ORDER BY wd.dt DESC
@@ -705,7 +768,7 @@ class WeatherApp(QMainWindow):
         self.weather_table.setRowCount(len(rows))
 
         for row_i, row_data in enumerate(rows):
-            for col_i, value in enumerate(row_data):
+            for col_i, value in enumerate(row_data[:-1]):
                 if col_i == 1:
                     temp_k = float(value)
                     if self.unit_is_fahrenheit:
@@ -726,8 +789,18 @@ class WeatherApp(QMainWindow):
 
                 self.weather_table.setItem(row_i, col_i, QTableWidgetItem(str(value)))
 
+            raw_json_str = row_data[-1]
+            btn = QPushButton("Load")
+            btn.setFixedWidth(40)
+            btn.clicked.connect(lambda _, raw=raw_json_str: self.load_weather_from_json(raw))
+            self.weather_table.setCellWidget(row_i, 7, btn)
+
         self.weather_table.resizeColumnsToContents()
         cursor.close()
+
+    def load_weather_from_json(self, raw_json_str):
+        self.weather_data = json.loads(raw_json_str)
+        self.display_weather()
 
     def db_connect(self):
         try:
@@ -781,6 +854,7 @@ class WeatherApp(QMainWindow):
             cursor.execute(insert_query, transformed_data)
             self.db_connection.commit()
             cursor.close()
+            self.load_saved_weather_data()
             print("Data saved to DB.")
 
         except mc.Error as e:
