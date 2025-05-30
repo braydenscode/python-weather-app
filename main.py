@@ -6,9 +6,95 @@ from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QPushButto
     QGraphicsDropShadowEffect, QStackedWidget, QGraphicsOpacityEffect, QMainWindow, QDockWidget, QTableWidget, \
     QTableWidgetItem
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QPainter, QLinearGradient, QColor, QBrush, QPixmap, QImage, QCursor
+from PyQt5.QtGui import QPainter, QLinearGradient, QColor, QBrush, QPixmap, QImage
 import mysql.connector as mc
 import json
+from PyQt5.QtWebEngineWidgets import QWebEngineView
+from PyQt5.QtWebChannel import QWebChannel
+from PyQt5.QtCore import QObject, pyqtSlot
+
+class MapWindow(QWidget):
+    def __init__(self, lat=None, lon=None, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Map")
+        self.view = QWebEngineView(self)
+
+        vlayout = QVBoxLayout()
+        vlayout.addWidget(self.view)
+        self.setLayout(vlayout)
+
+        self.channel = QWebChannel()
+        self.js_bridge = MapBridge(self)
+        self.channel.registerObject('bridge', self.js_bridge)
+        self.view.page().setWebChannel(self.channel)
+
+        self.lat = lat
+        self.lon = lon
+        self.load_map()
+
+    def load_map(self):
+        html = f'''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8" />
+            <title>Map</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+                  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+                  crossorigin=""/>
+            <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+                    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+                    crossorigin=""></script>
+            <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+            <style>html, body, #map {{ height: 100%; margin: 0; }}</style>
+        </head>
+        <body>
+            <div id="map"></div>
+            <script>
+                let map = L.map('map', {{worldCopyJump: true}}).setView([{self.lat or 36}, {self.lon or -98}], 3);
+                L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
+                    maxZoom: 19,
+                }}).addTo(map);
+                let marker = null;
+                if ({'true' if self.lat is not None and self.lon is not None else 'false'}) {{
+                    marker = L.marker([{self.lat}, {self.lon}]).addTo(map);
+                }}
+                new QWebChannel(qt.webChannelTransport, function(channel) {{
+                    window.bridge = channel.objects.bridge;
+                }});
+                map.on('click', function(e) {{
+                    if (marker) {{ marker.setLatLng(e.latlng); }}
+                    else {{ marker = L.marker(e.latlng).addTo(map); }}
+                    if (window.bridge) {{
+                        window.bridge.mapClicked(e.latlng.lat, e.latlng.lng);
+                    }}
+                }});
+            </script>
+        </body>
+        </html>
+        '''
+        self.view.setHtml(html)
+
+    def set_marker(self, lat, lon):
+        js = f"""
+        if (typeof marker !== 'undefined' && marker) {{
+            marker.setLatLng([{lat}, {lon}]);
+        }} else {{
+            marker = L.marker([{lat}, {lon}]).addTo(map);
+        }}
+        map.setView([{lat}, {lon}], map.getZoom());
+        """
+        self.view.page().runJavaScript(js)
+
+class MapBridge(QObject):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.parent = parent
+
+    @pyqtSlot(float, float)
+    def mapClicked(self, lat, lon):
+        print(f"Clicked coordinates: {lat}, {lon}")
 
 class WeatherApp(QMainWindow):
     WEATHER_GRADIENTS = {
@@ -92,6 +178,7 @@ class WeatherApp(QMainWindow):
         self.setAutoFillBackground(True)
         self.setWindowTitle("Weather App")
         self.setMinimumSize(420, 720)
+        self.setMaximumHeight(720)
 
         for label in [
             self.feels_like_temp_label,
@@ -672,21 +759,19 @@ class WeatherApp(QMainWindow):
 
     def toggle_map_dock(self):
         if self.map_dock is None:
+            lat = lon = None
+            if self.weather_data:
+                lat = self.weather_data['coord']['lat']
+                lon = self.weather_data['coord']['lon']
+            self.map_widget = MapWindow(lat, lon)
             self.map_dock = QDockWidget("Map", self)
+            self.map_dock.setWidget(self.map_widget)
             self.map_dock.setAllowedAreas(Qt.LeftDockWidgetArea)
             self.map_dock.setMinimumWidth(484)
-
-            map_dock_widget = QWidget()
-            self.map_dock_layout = QVBoxLayout(map_dock_widget)
-
-            self.map_label = QLabel("PLACEHOLDER, PLACE MAP HERE")
-            self.map_dock_layout.addWidget(self.map_label)
-
-            self.map_dock.setWidget(map_dock_widget)
             self.addDockWidget(Qt.LeftDockWidgetArea, self.map_dock)
 
             self.map_dock.visibilityChanged.connect(self.adjust_window_size)
-            self.db_dock.topLevelChanged.connect(self.on_dock_floating)
+            self.map_dock.topLevelChanged.connect(self.on_dock_floating)
         else:
             self.map_dock.setVisible(not self.map_dock.isVisible())
 
@@ -745,15 +830,6 @@ class WeatherApp(QMainWindow):
             self.resize(base_width, 720)
 
         self.resize(total_width, 720)
-
-    # def adjust_window_size(self, visible):
-        # if visible and not self.db_dock.isFloating():
-        #     self.setMinimumWidth(420 + self.db_dock.minimumWidth() + 40)
-        # elif not visible and self.db_dock.isFloating():
-        #     self.db_dock.setFloating(False)
-        # else:
-        #     self.setMinimumWidth(420)
-        #     self.resize(420, 720)
 
     def load_saved_weather_data(self):
         cursor = self.db_connection.cursor()
@@ -859,7 +935,6 @@ class WeatherApp(QMainWindow):
 
         except mc.Error as e:
             print(f"SQL Error: {e}")
-
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
