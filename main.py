@@ -9,92 +9,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPainter, QLinearGradient, QColor, QBrush, QPixmap, QImage
 import mysql.connector as mc
 import json
-from PyQt5.QtWebEngineWidgets import QWebEngineView
-from PyQt5.QtWebChannel import QWebChannel
-from PyQt5.QtCore import QObject, pyqtSlot
-
-class MapWindow(QWidget):
-    def __init__(self, lat=None, lon=None, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Map")
-        self.view = QWebEngineView(self)
-
-        vlayout = QVBoxLayout()
-        vlayout.addWidget(self.view)
-        self.setLayout(vlayout)
-
-        self.channel = QWebChannel()
-        self.js_bridge = MapBridge(self)
-        self.channel.registerObject('bridge', self.js_bridge)
-        self.view.page().setWebChannel(self.channel)
-
-        self.lat = lat
-        self.lon = lon
-        self.load_map()
-
-    def load_map(self):
-        html = f'''
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8" />
-            <title>Map</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-                  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-                  crossorigin=""/>
-            <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-                    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-                    crossorigin=""></script>
-            <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
-            <style>html, body, #map {{ height: 100%; margin: 0; }}</style>
-        </head>
-        <body>
-            <div id="map"></div>
-            <script>
-                let map = L.map('map', {{worldCopyJump: true}}).setView([{self.lat or 36}, {self.lon or -98}], 3);
-                L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
-                    maxZoom: 19,
-                }}).addTo(map);
-                let marker = null;
-                if ({'true' if self.lat is not None and self.lon is not None else 'false'}) {{
-                    marker = L.marker([{self.lat}, {self.lon}]).addTo(map);
-                }}
-                new QWebChannel(qt.webChannelTransport, function(channel) {{
-                    window.bridge = channel.objects.bridge;
-                }});
-                map.on('click', function(e) {{
-                    if (marker) {{ marker.setLatLng(e.latlng); }}
-                    else {{ marker = L.marker(e.latlng).addTo(map); }}
-                    if (window.bridge) {{
-                        window.bridge.mapClicked(e.latlng.lat, e.latlng.lng);
-                    }}
-                }});
-            </script>
-        </body>
-        </html>
-        '''
-        self.view.setHtml(html)
-
-    def set_marker(self, lat, lon):
-        js = f"""
-        if (typeof marker !== 'undefined' && marker) {{
-            marker.setLatLng([{lat}, {lon}]);
-        }} else {{
-            marker = L.marker([{lat}, {lon}]).addTo(map);
-        }}
-        map.setView([{lat}, {lon}], map.getZoom());
-        """
-        self.view.page().runJavaScript(js)
-
-class MapBridge(QObject):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.parent = parent
-
-    @pyqtSlot(float, float)
-    def mapClicked(self, lat, lon):
-        print(f"Clicked coordinates: {lat}, {lon}")
+from widgets.map import MapWindow
 
 class WeatherApp(QMainWindow):
     WEATHER_GRADIENTS = {
@@ -167,8 +82,12 @@ class WeatherApp(QMainWindow):
         self.db_dock = None
 
         self.weather_data = None
+        self.previous_data = None
         self.unit_is_fahrenheit = True
         self.is_daytime = None
+
+        self.auto_saves_city_data = True
+        self.auto_saves_coords_data = False
 
         self.initUI()
         self.db_connection = self.db_connect()
@@ -417,8 +336,8 @@ class WeatherApp(QMainWindow):
             }
         """)
 
-        self.city_input.returnPressed.connect(self.get_weather)
-        self.get_weather_button.clicked.connect(self.get_weather)
+        self.city_input.returnPressed.connect(self.get_weather_by_city)
+        self.get_weather_button.clicked.connect(self.get_weather_by_city)
         self.change_unit_button.clicked.connect(self.change_unit)
         self.change_display_button.clicked.connect(self.change_display)
         self.map_button.clicked.connect(self.toggle_map_dock)
@@ -467,20 +386,13 @@ class WeatherApp(QMainWindow):
 
             top_color, bottom_color = self.WEATHER_GRADIENTS.get(key, (top_color, bottom_color))
 
-
         gradient = QLinearGradient(0, 0, 0, rect.height())
         gradient.setColorAt(0, QColor(top_color))
         gradient.setColorAt(1, QColor(bottom_color))
 
         painter.fillRect(rect, QBrush(gradient))
 
-    def get_weather(self):
-        api_key = os.getenv("API_KEY")
-        city = self.city_input.text()
-        url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}"
-
-        self.temperature_label.setText("")
-        self.temperature_label_advanced.setText("")
+    def clear_labels(self):
         self.emoji_label.clear()
         self.emoji_label_advanced.clear()
         self.description_label.clear()
@@ -504,6 +416,40 @@ class WeatherApp(QMainWindow):
         self.feels_like_temp_label.clear()
         self.country_label.clear()
 
+    def get_weather_by_city(self):
+        api_key = os.getenv("API_KEY")
+        city = self.city_input.text()
+        url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}"
+        data = self.fetch_weather_data(url)
+        if data:
+            print(data)
+            self.previous_data = self.weather_data
+            self.weather_data = data
+            self.display_weather()
+            self.update_map()
+            self.update_save_data_button()
+            if self.auto_saves_city_data:
+                self.save_current_data()
+
+    def get_weather_by_coords(self, lat, lon):
+        api_key = os.getenv("API_KEY")
+        url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={api_key}"
+        data = self.fetch_weather_data(url)
+        if data:
+            print(data)
+            self.previous_data = self.weather_data
+            self.weather_data = data
+            self.update_map()
+            self.display_weather()
+            self.update_save_data_button()
+            if self.auto_saves_coords_data:
+                self.save_current_data()
+
+    def  fetch_weather_data(self, url):
+        self.temperature_label.setText("")
+        self.temperature_label_advanced.setText("")
+        self.clear_labels()
+
         self.get_weather_button.setEnabled(False)
         self.change_unit_button.setEnabled(False)
         self.change_display_button.setEnabled(False)
@@ -514,10 +460,7 @@ class WeatherApp(QMainWindow):
             data = response.json()
 
             if data["cod"] == 200:
-                print(data)
-                self.weather_data = data
-                self.display_weather()
-                self.save_weather_to_db(self.transform_weather_json(self.weather_data))
+                return data
 
         except requests.exceptions.HTTPError as http_error:
             match response.status_code:
@@ -559,28 +502,7 @@ class WeatherApp(QMainWindow):
         self.temperature_label_advanced.setStyleSheet("font-size: 30px;")
         self.temperature_label.setText(message)
         self.temperature_label_advanced.setText(message)
-        self.emoji_label.clear()
-        self.emoji_label_advanced.clear()
-        self.description_label.clear()
-        self.description_label_advanced.clear()
-        self.clouds_label.clear()
-        self.humidity_label.clear()
-        self.wind_speed_label.clear()
-        self.clouds_label_advanced.clear()
-        self.humidity_label_advanced.clear()
-        self.wind_speed_label_advanced.clear()
-        self.wind_direction_label.clear()
-        self.wind_gust_label.clear()
-        self.visibility_label.clear()
-        self.pressure_label.clear()
-        self.sunrise_label.clear()
-        self.sunset_label.clear()
-        self.dt_label.clear()
-        self.dt_label_advanced.clear()
-        self.temp_min_label.clear()
-        self.temp_max_label.clear()
-        self.feels_like_temp_label.clear()
-        self.country_label.clear()
+        self.clear_labels()
 
     def display_weather(self):
         if self.weather_data:
@@ -763,7 +685,7 @@ class WeatherApp(QMainWindow):
             if self.weather_data:
                 lat = self.weather_data['coord']['lat']
                 lon = self.weather_data['coord']['lon']
-            self.map_widget = MapWindow(lat, lon)
+            self.map_widget = MapWindow(self, lat, lon)
             self.map_dock = QDockWidget("Map", self)
             self.map_dock.setWidget(self.map_widget)
             self.map_dock.setAllowedAreas(Qt.LeftDockWidgetArea)
@@ -784,9 +706,31 @@ class WeatherApp(QMainWindow):
             db_dock_widget = QWidget()
             self.db_dock_layout = QVBoxLayout(db_dock_widget)
 
+            hlayout = QHBoxLayout()
+            self.save_current_data_button = QPushButton("Save Current", self)
+            self.save_current_data_button.setEnabled(False)
+            auto_save_city_button = QPushButton("Auto-Save City", self)
+            auto_save_city_button.setCheckable(True)
+            auto_save_city_button.setChecked(True)
+            auto_save_city_button.toggled.connect(self.auto_save_city_data)
+            auto_save_coords_button = QPushButton("Auto-Save Coords", self)
+            auto_save_coords_button.setCheckable(True)
+            auto_save_city_button.toggled.connect(self.auto_save_coords_data)
+
+            btns = [auto_save_city_button, auto_save_coords_button, self.save_current_data_button]
+            for btn in btns:
+                btn.setFixedHeight(32)
+                btn.setStyleSheet("font-size: 20px;"
+                                              "font-family: calibri;"
+                                              "padding: 0 6 0 6;")
+            hlayout.addWidget(self.save_current_data_button)
+            hlayout.addWidget(auto_save_city_button)
+            hlayout.addWidget(auto_save_coords_button)
+            self.db_dock_layout.addLayout(hlayout)
+
             self.weather_table = QTableWidget()
             self.weather_table.setColumnCount(8)
-            self.weather_table.setHorizontalHeaderLabels(["City", "Temp", "Weather", "Clouds", "Humidity", "Wind", "Time Collected", ""])
+            self.weather_table.setHorizontalHeaderLabels(["", "City", "Temp", "Weather", "Clouds", "Humidity", "Wind", "Time Collected"])
             self.db_dock_layout.addWidget(self.weather_table)
 
             self.db_dock.setWidget(db_dock_widget)
@@ -834,7 +778,7 @@ class WeatherApp(QMainWindow):
     def load_saved_weather_data(self):
         cursor = self.db_connection.cursor()
         cursor.execute("""
-        SELECT l.name, wd.temp, wd.weather_main, wd.clouds, wd.humidity, wd.wind_speed, wd.dt, wd.raw_json
+        SELECT wd.raw_json, l.name, wd.temp, wd.weather_main, wd.clouds, wd.humidity, wd.wind_speed, wd.dt
         FROM weather_data wd
         JOIN locations l ON wd.location_id = l.id
         ORDER BY wd.dt DESC
@@ -844,7 +788,13 @@ class WeatherApp(QMainWindow):
         self.weather_table.setRowCount(len(rows))
 
         for row_i, row_data in enumerate(rows):
-            for col_i, value in enumerate(row_data[:-1]):
+            raw_json_str = row_data[0]
+            btn = QPushButton("Load")
+            btn.setFixedWidth(40)
+            btn.clicked.connect(lambda _, raw=raw_json_str: self.load_weather_from_json(raw))
+            self.weather_table.setCellWidget(row_i, 0, btn)
+            for col_i, value in enumerate(row_data[1:]):
+                table_col = col_i + 1
                 if col_i == 1:
                     temp_k = float(value)
                     if self.unit_is_fahrenheit:
@@ -863,20 +813,17 @@ class WeatherApp(QMainWindow):
                 elif col_i == 6:
                     value = value.strftime("%H:%M | %m/%d/%y")
 
-                self.weather_table.setItem(row_i, col_i, QTableWidgetItem(str(value)))
-
-            raw_json_str = row_data[-1]
-            btn = QPushButton("Load")
-            btn.setFixedWidth(40)
-            btn.clicked.connect(lambda _, raw=raw_json_str: self.load_weather_from_json(raw))
-            self.weather_table.setCellWidget(row_i, 7, btn)
+                self.weather_table.setItem(row_i, table_col, QTableWidgetItem(str(value)))
 
         self.weather_table.resizeColumnsToContents()
         cursor.close()
 
     def load_weather_from_json(self, raw_json_str):
+        self.previous_data = self.weather_data
         self.weather_data = json.loads(raw_json_str)
         self.display_weather()
+        self.update_map()
+        self.update_save_data_button()
 
     def db_connect(self):
         try:
@@ -935,6 +882,35 @@ class WeatherApp(QMainWindow):
 
         except mc.Error as e:
             print(f"SQL Error: {e}")
+
+    def auto_save_city_data(self, checked):
+        if checked:
+            self.auto_saves_city_data = True
+        else:
+            self.auto_saves_city_data = False
+
+    def auto_save_coords_data(self, checked):
+        if checked:
+            self.auto_saves_coords_data = True
+        else:
+            self.auto_saves_coords_data = False
+
+    def update_save_data_button(self):
+        if self.previous_data == self.weather_data:
+            self.save_current_data_button.setEnabled(False)
+        else:
+            self.save_current_data_button.setEnabled(True)
+
+    def save_current_data(self):
+        if self.weather_data != self.previous_data:
+            self.save_weather_to_db(self.transform_weather_json(self.weather_data))
+
+    def update_map(self):
+        if self.map_dock and self.weather_data:
+            lat = self.weather_data['coord']['lat']
+            lon = self.weather_data['coord']['lon']
+            self.map_widget.set_marker(lat, lon)
+            self.map_widget.update_coords_display(lat, lon)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
