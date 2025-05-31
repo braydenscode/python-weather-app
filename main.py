@@ -709,6 +709,7 @@ class WeatherApp(QMainWindow):
             hlayout = QHBoxLayout()
             self.save_current_data_button = QPushButton("Save Current", self)
             self.save_current_data_button.setEnabled(False)
+            self.save_current_data_button.clicked.connect(self.save_current_data)
             auto_save_city_button = QPushButton("Auto-Save City", self)
             auto_save_city_button.setCheckable(True)
             auto_save_city_button.setChecked(True)
