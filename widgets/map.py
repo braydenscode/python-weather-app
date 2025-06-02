@@ -3,6 +3,9 @@ from PyQt5.QtWebChannel import QWebChannel
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QPushButton, QLineEdit, QWidget
 
+from weather_api import get_weather_by_coords
+
+
 class MapWindow(QWidget):
     def __init__(self, weather_app, lat=None, lon=None, parent=None):
         super().__init__(parent)
@@ -51,7 +54,7 @@ class MapWindow(QWidget):
     def on_get_weather_click(self):
         if self.lat is not None and self.lon is not None:
             self.get_weather_button.setEnabled(False)
-            self.weather_app.get_weather_by_coords(self.lat, self.lon)
+            get_weather_by_coords(self.parent().parent(), self.lat, self.lon)
             QTimer.singleShot(5000, lambda: self.get_weather_button.setEnabled(True))
 
     def load_map(self):
@@ -108,6 +111,7 @@ class MapWindow(QWidget):
         map.setView([{lat}, {lon}], map.getZoom());
         """
         self.view.page().runJavaScript(js)
+
 
 class MapBridge(QObject):
     def __init__(self, parent=None):
