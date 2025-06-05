@@ -143,7 +143,6 @@ def initUI(self):
     main_layout.addLayout(input_layout)
     main_layout.addWidget(self.stacked_widget)
     main_layout.addLayout(bottom_button_layout)
-    self.setLayout(main_layout)
 
     central_widget = QWidget()
     central_widget.setLayout(main_layout)
