@@ -20,8 +20,23 @@ A real-time weather application built with Python and PyQt5.
 - Docked Interactive Map
 
 ## 🛠️ Installation
-<details><summary><b>Set Up MySQL Database</b></summary>
+### Requirements:
+- Python
+- MySQL Workbench
+- OpenWeather API Key
 
+### Setup:
+
+<details><summary><b>Get an OpenWeather API Key</b></summary>
+
+  1. Create an account at https://home.openweathermap.org/users/sign_up
+
+  
+2. Go to https://home.openweathermap.org/api_keys and generate a new API key.
+</details>
+
+<details><summary><b>Set Up MySQL Database</b></summary>
+  
   1. Create a new SQL tab and execute this query to set up schema and tables.
 
   ```
@@ -101,17 +116,21 @@ CREATE TABLE IF NOT EXISTS weather_data (
       pip install -r requirements.txt
     ```
 
-5. (Temporarily) Set Environment Variables:
+5. (Temporarily) Set Environment Variables:  
+   <br/>
+   Make sure to replace the values for both lines.
     - Bash
     ```sh
-    export OPENWEATHER_API_KEY=your_openweather_key
+    export API_KEY=your_openweather_api_key
+    export DB_PASS=your_db_password
     ```
     - cmd
     ```cmd
-    set OPENWEATHER_API_KEY=your_openweather_key
+    set API_KEY=your_openweather_api_key
+    set DB_PASS=your_db_password
     ```
 
-6. Run the Application:
+7. Run the Application:
 
     ```
       python main.py
