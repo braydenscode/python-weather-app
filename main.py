@@ -277,7 +277,16 @@ class WeatherApp(QMainWindow):
             self.weather_table.setColumnCount(8)
             self.weather_table.setHorizontalHeaderLabels(
                 ["", "City", "Temp", "Weather", "Clouds", "Hm", "Wind", "Time Collected"])
-            self.db_dock_layout.addWidget(self.weather_table)
+
+            if self.db_connection is None or not self.db_connection.is_connected():
+                warning_label = QLabel("Database is not connected.\nPlease verify you have set the correct password.")
+                warning_label.setStyleSheet("font-weight: bold; font-size: 24px; color: crimson;")
+                warning_label.setAlignment(Qt.AlignTop | Qt.AlignHCenter)
+                self.db_dock_layout.addWidget(warning_label)
+                for btn in btns:
+                    btn.setDisabled(True)
+            else:
+                self.db_dock_layout.addWidget(self.weather_table)
 
             self.db_dock.setWidget(db_dock_widget)
             self.addDockWidget(Qt.RightDockWidgetArea, self.db_dock)
@@ -343,10 +352,11 @@ class WeatherApp(QMainWindow):
             self.auto_saves_coords_data = False
 
     def update_save_data_button(self):
-        if self.previous_data == self.weather_data:
-            self.save_current_data_button.setEnabled(False)
-        else:
-            self.save_current_data_button.setEnabled(True)
+        if self.db_connection and self.db_connection.is_connected():
+            if self.previous_data == self.weather_data:
+                self.save_current_data_button.setEnabled(False)
+            else:
+                self.save_current_data_button.setEnabled(True)
 
     def save_current_data(self):
         if self.weather_data != self.previous_data:

@@ -22,6 +22,9 @@ def db_connect():
 
 
 def save_weather_to_db(self, transformed_data):
+    if self.db_connection is None or not self.db_connection.is_connected():
+        print("Database is not connected.\tNo weather data was saved.")
+        return
     try:
         cursor = self.db_connection.cursor()
         cursor.execute("SELECT id FROM locations WHERE id = %s", (transformed_data["location_id"],))
@@ -66,47 +69,53 @@ def save_weather_to_db(self, transformed_data):
 
 
 def load_saved_weather_data(self):
-    cursor = self.db_connection.cursor()
-    cursor.execute("""
-        SELECT wd.raw_json, l.name, wd.temp, wd.weather_main, wd.clouds, wd.humidity, wd.wind_speed, wd.dt
-        FROM weather_data wd
-        JOIN locations l ON wd.location_id = l.id
-        ORDER BY wd.dt DESC
-        LIMIT 50
-    """)
-    rows = cursor.fetchall()
-    self.weather_table.setRowCount(len(rows))
+    if self.db_connection is None or not self.db_connection.is_connected():
+        print("Database is not connected.\tNo weather data was loaded.")
+        return
+    try:
+        cursor = self.db_connection.cursor()
+        cursor.execute("""
+            SELECT wd.raw_json, l.name, wd.temp, wd.weather_main, wd.clouds, wd.humidity, wd.wind_speed, wd.dt
+            FROM weather_data wd
+            JOIN locations l ON wd.location_id = l.id
+            ORDER BY wd.dt DESC
+            LIMIT 50
+        """)
+        rows = cursor.fetchall()
+        self.weather_table.setRowCount(len(rows))
 
-    for row_i, row_data in enumerate(rows):
-        raw_json_str = row_data[0]
-        btn = QPushButton("Load")
-        btn.setFixedWidth(40)
-        btn.clicked.connect(lambda _, raw=raw_json_str: self.load_weather_from_json(raw))
-        self.weather_table.setCellWidget(row_i, 0, btn)
-        for col_i, value in enumerate(row_data[1:]):
-            table_col = col_i + 1
-            if col_i == 1:
-                temp_k = float(value)
-                if self.unit_is_fahrenheit:
-                    value = f"{(temp_k * 9 / 5) - 459.67:.1f}°F"
-                else:
-                    value = f"{temp_k - 273.15:.1f}°C"
-            elif col_i == 2:
-                value = value.title()
-            elif col_i == 3 or col_i == 4:
-                value = f"{value}%"
-            elif col_i == 5:
-                if self.unit_is_fahrenheit:
-                    value = f"{value * 2.237:.1f} mph"
-                else:
-                    value = f"{value :.1f} m/s"
-            elif col_i == 6:
-                value = value.strftime("%H:%M | %m/%d/%y")
+        for row_i, row_data in enumerate(rows):
+            raw_json_str = row_data[0]
+            btn = QPushButton("Load")
+            btn.setFixedWidth(40)
+            btn.clicked.connect(lambda _, raw=raw_json_str: self.load_weather_from_json(raw))
+            self.weather_table.setCellWidget(row_i, 0, btn)
+            for col_i, value in enumerate(row_data[1:]):
+                table_col = col_i + 1
+                if col_i == 1:
+                    temp_k = float(value)
+                    if self.unit_is_fahrenheit:
+                        value = f"{(temp_k * 9 / 5) - 459.67:.1f}°F"
+                    else:
+                        value = f"{temp_k - 273.15:.1f}°C"
+                elif col_i == 2:
+                    value = value.title()
+                elif col_i == 3 or col_i == 4:
+                    value = f"{value}%"
+                elif col_i == 5:
+                    if self.unit_is_fahrenheit:
+                        value = f"{value * 2.237:.1f} mph"
+                    else:
+                        value = f"{value :.1f} m/s"
+                elif col_i == 6:
+                    value = value.strftime("%H:%M | %m/%d/%y")
 
-            self.weather_table.setItem(row_i, table_col, QTableWidgetItem(str(value)))
+                self.weather_table.setItem(row_i, table_col, QTableWidgetItem(str(value)))
 
-    self.weather_table.resizeColumnsToContents()
-    cursor.close()
+        self.weather_table.resizeColumnsToContents()
+        cursor.close()
+    except mc.Error as e:
+        print(f"SQL Error: {e}")
 
 
 def transform_weather_json(json_data):
