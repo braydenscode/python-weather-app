@@ -46,6 +46,9 @@ class MapWindow(QWidget):
 
         self.load_map()
 
+        if self.lat is not None and self.lon is not None:
+            self.update_coords_display(self.lat, self.lon)
+
     def update_coords_display(self, lat, lon):
         self.lat = lat
         self.lon = lon
