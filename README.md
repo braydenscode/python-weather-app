@@ -3,7 +3,7 @@ A real-time weather application built with Python and PyQt5.
 > 🧠 Inspired by the final project of Bro Code's 2024 Python Course.
 <br/>
 
-![python_b8EQaXSfHC](https://github.com/user-attachments/assets/5e1c519d-e2f1-4a35-8558-1f307ff75320)
+![python_URi1sqn78p](https://github.com/user-attachments/assets/329d0ad4-0c73-4840-b6f5-fdf3c1d5b582)
 
 ## ✨ Features
 - Real-Time Weather Retrieval by City
