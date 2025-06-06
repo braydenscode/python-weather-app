@@ -730,7 +730,7 @@ class WeatherApp(QMainWindow):
 
             self.weather_table = QTableWidget()
             self.weather_table.setColumnCount(8)
-            self.weather_table.setHorizontalHeaderLabels(["", "City", "Temp", "Weather", "Clouds", "Humidity", "Wind", "Time Collected"])
+            self.weather_table.setHorizontalHeaderLabels(["", "City", "Temp", "Weather", "Clouds", "Hm", "Wind", "Time Collected"])
             self.db_dock_layout.addWidget(self.weather_table)
 
             self.db_dock.setWidget(db_dock_widget)
