@@ -333,7 +333,7 @@ class WeatherApp(QMainWindow):
             QPushButton#map_button, QPushButton#database_button{
                 font-size: 20px;
             }
-            QLabel#dt_label, QLabel#dt_label_advanced{
+            QLabel#dt_label_advanced{
                 font-family: consolas;
                 font-size: 12px;
             }
@@ -586,14 +586,11 @@ class WeatherApp(QMainWindow):
             self.wind_direction_label.setText(
                 f"Wind Direction\n{get_direction_arrow(self.weather_data['wind']['deg'])} {self.weather_data['wind']['deg']}°")
             self.dt_label.setText(
-                f"Data collected at {datetime.datetime.fromtimestamp(self.weather_data['dt']).strftime('%I:%M %p, %B %d, %Y')} device time.\n"
-                f"Data collected at {datetime.datetime.fromtimestamp(self.weather_data['dt'], tz=timezone).strftime('%I:%M %p, %B %d, %Y')} target time.")
+                f"Data collected at {datetime.datetime.fromtimestamp(self.weather_data['dt']).strftime('%I:%M %p, %B %d, %Y')} device time.")
             self.dt_label_advanced.setText(
                 f"Data collected at {datetime.datetime.fromtimestamp(self.weather_data['dt']).strftime('%I:%M %p, %B %d, %Y')} device time.\n"
                 f"Data collected at {datetime.datetime.fromtimestamp(self.weather_data['dt'], tz=timezone).strftime('%I:%M %p, %B %d, %Y')} target time.")
 
-            # not using. might add search location by clicking point on map and searching with coords
-            # self.coordinates_label.setText(f"Coords\n{self.weather_data['coord']['lat']}, {self.weather_data['coord']['lon']}")
 
             url = f"https://flagcdn.com/h24/{self.weather_data['sys']['country'].lower()}.png"
             try:
