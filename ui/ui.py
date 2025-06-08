@@ -244,6 +244,10 @@ def initUI(self):
         QPushButton#map_button, QPushButton#database_button{
             font-size: 20px;
         }
+        QLabel#dt_label_advanced{
+                font-family: consolas;
+                font-size: 12px;
+            }
     """)
 
     self.city_input.returnPressed.connect(lambda: get_weather_by_city(self))

@@ -156,9 +156,10 @@ class WeatherApp(QMainWindow):
             self.wind_direction_label.setText(
                 f"Wind Direction\n{get_direction_arrow(self.weather_data['wind']['deg'])} {self.weather_data['wind']['deg']}°")
             self.dt_label.setText(
-                f"Data collected @ {datetime.datetime.fromtimestamp(self.weather_data['dt']).strftime('%I:%M %p, %B %d, %Y')}")
+                f"Data collected at {datetime.datetime.fromtimestamp(self.weather_data['dt']).strftime('%I:%M %p, %B %d, %Y')} device time.")
             self.dt_label_advanced.setText(
-                f"Data collected @ {datetime.datetime.fromtimestamp(self.weather_data['dt']).strftime('%I:%M %p, %B %d, %Y')}")
+                f"Data collected at {datetime.datetime.fromtimestamp(self.weather_data['dt']).strftime('%I:%M %p, %B %d, %Y')} device time.\n"
+                f"Data collected at {datetime.datetime.fromtimestamp(self.weather_data['dt'], tz=timezone).strftime('%I:%M %p, %B %d, %Y')} target time.")
 
             url = f"https://flagcdn.com/h24/{self.weather_data['sys']['country'].lower()}.png"
             try:
