@@ -232,7 +232,6 @@ class WeatherApp(QMainWindow):
         main_layout.addLayout(input_layout)
         main_layout.addWidget(self.stacked_widget)
         main_layout.addLayout(bottom_button_layout)
-        self.setLayout(main_layout)
 
         central_widget = QWidget()
         central_widget.setLayout(main_layout)
@@ -333,6 +332,10 @@ class WeatherApp(QMainWindow):
             }
             QPushButton#map_button, QPushButton#database_button{
                 font-size: 20px;
+            }
+            QLabel#dt_label_advanced{
+                font-family: consolas;
+                font-size: 12px;
             }
         """)
 
@@ -583,12 +586,11 @@ class WeatherApp(QMainWindow):
             self.wind_direction_label.setText(
                 f"Wind Direction\n{get_direction_arrow(self.weather_data['wind']['deg'])} {self.weather_data['wind']['deg']}°")
             self.dt_label.setText(
-                f"Data collected @ {datetime.datetime.fromtimestamp(self.weather_data['dt']).strftime('%I:%M %p, %B %d, %Y')}")
+                f"Data collected at {datetime.datetime.fromtimestamp(self.weather_data['dt']).strftime('%I:%M %p, %B %d, %Y')} device time.")
             self.dt_label_advanced.setText(
-                f"Data collected @ {datetime.datetime.fromtimestamp(self.weather_data['dt']).strftime('%I:%M %p, %B %d, %Y')}")
+                f"Data collected at {datetime.datetime.fromtimestamp(self.weather_data['dt']).strftime('%I:%M %p, %B %d, %Y')} device time.\n"
+                f"Data collected at {datetime.datetime.fromtimestamp(self.weather_data['dt'], tz=timezone).strftime('%I:%M %p, %B %d, %Y')} target time.")
 
-            # not using. might add search location by clicking point on map and searching with coords
-            # self.coordinates_label.setText(f"Coords\n{self.weather_data['coord']['lat']}, {self.weather_data['coord']['lon']}")
 
             url = f"https://flagcdn.com/h24/{self.weather_data['sys']['country'].lower()}.png"
             try:
@@ -731,8 +733,17 @@ class WeatherApp(QMainWindow):
 
             self.weather_table = QTableWidget()
             self.weather_table.setColumnCount(8)
-            self.weather_table.setHorizontalHeaderLabels(["", "City", "Temp", "Weather", "Clouds", "Humidity", "Wind", "Time Collected"])
-            self.db_dock_layout.addWidget(self.weather_table)
+            self.weather_table.setHorizontalHeaderLabels(["", "City", "Temp", "Weather", "Clouds", "Hm", "Wind", "Time Collected"])
+
+            if self.db_connection is None or not self.db_connection.is_connected():
+                warning_label = QLabel("Database is not connected.\nPlease verify you have set the correct password.")
+                warning_label.setStyleSheet("font-weight: bold; font-size: 24px; color: crimson;")
+                warning_label.setAlignment(Qt.AlignTop | Qt.AlignHCenter)
+                self.db_dock_layout.addWidget(warning_label)
+                for btn in btns:
+                    btn.setDisabled(True)
+            else:
+                self.db_dock_layout.addWidget(self.weather_table)
 
             self.db_dock.setWidget(db_dock_widget)
             self.addDockWidget(Qt.RightDockWidgetArea, self.db_dock)
@@ -777,47 +788,53 @@ class WeatherApp(QMainWindow):
         self.resize(total_width, 720)
 
     def load_saved_weather_data(self):
-        cursor = self.db_connection.cursor()
-        cursor.execute("""
-        SELECT wd.raw_json, l.name, wd.temp, wd.weather_main, wd.clouds, wd.humidity, wd.wind_speed, wd.dt
-        FROM weather_data wd
-        JOIN locations l ON wd.location_id = l.id
-        ORDER BY wd.dt DESC
-        LIMIT 50
-    """)
-        rows = cursor.fetchall()
-        self.weather_table.setRowCount(len(rows))
+        if self.db_connection is None or not self.db_connection.is_connected():
+            print("Database is not connected.\tNo weather data was loaded.")
+            return
+        try:
+            cursor = self.db_connection.cursor()
+            cursor.execute("""
+            SELECT wd.raw_json, l.name, wd.temp, wd.weather_main, wd.clouds, wd.humidity, wd.wind_speed, wd.dt
+            FROM weather_data wd
+            JOIN locations l ON wd.location_id = l.id
+            ORDER BY wd.dt DESC
+            LIMIT 50
+        """)
+            rows = cursor.fetchall()
+            self.weather_table.setRowCount(len(rows))
 
-        for row_i, row_data in enumerate(rows):
-            raw_json_str = row_data[0]
-            btn = QPushButton("Load")
-            btn.setFixedWidth(40)
-            btn.clicked.connect(lambda _, raw=raw_json_str: self.load_weather_from_json(raw))
-            self.weather_table.setCellWidget(row_i, 0, btn)
-            for col_i, value in enumerate(row_data[1:]):
-                table_col = col_i + 1
-                if col_i == 1:
-                    temp_k = float(value)
-                    if self.unit_is_fahrenheit:
-                        value = f"{(temp_k * 9 / 5) - 459.67:.1f}°F"
-                    else:
-                        value = f"{temp_k - 273.15:.1f}°C"
-                elif col_i == 2:
-                    value = value.title()
-                elif col_i == 3 or col_i == 4:
-                    value = f"{value}%"
-                elif col_i == 5:
-                    if self.unit_is_fahrenheit:
-                        value = f"{value * 2.237:.1f} mph"
-                    else:
-                        value = f"{value :.1f} m/s"
-                elif col_i == 6:
-                    value = value.strftime("%H:%M | %m/%d/%y")
+            for row_i, row_data in enumerate(rows):
+                raw_json_str = row_data[0]
+                btn = QPushButton("Load")
+                btn.setFixedWidth(40)
+                btn.clicked.connect(lambda _, raw=raw_json_str: self.load_weather_from_json(raw))
+                self.weather_table.setCellWidget(row_i, 0, btn)
+                for col_i, value in enumerate(row_data[1:]):
+                    table_col = col_i + 1
+                    if col_i == 1:
+                        temp_k = float(value)
+                        if self.unit_is_fahrenheit:
+                            value = f"{(temp_k * 9 / 5) - 459.67:.1f}°F"
+                        else:
+                            value = f"{temp_k - 273.15:.1f}°C"
+                    elif col_i == 2:
+                        value = value.title()
+                    elif col_i == 3 or col_i == 4:
+                        value = f"{value}%"
+                    elif col_i == 5:
+                        if self.unit_is_fahrenheit:
+                            value = f"{value * 2.237:.1f} mph"
+                        else:
+                            value = f"{value :.1f} m/s"
+                    elif col_i == 6:
+                        value = value.strftime("%H:%M | %m/%d/%y")
 
-                self.weather_table.setItem(row_i, table_col, QTableWidgetItem(str(value)))
+                    self.weather_table.setItem(row_i, table_col, QTableWidgetItem(str(value)))
 
-        self.weather_table.resizeColumnsToContents()
-        cursor.close()
+            self.weather_table.resizeColumnsToContents()
+            cursor.close()
+        except mc.Error as e:
+            print(f"SQL Error: {e}")
 
     def load_weather_from_json(self, raw_json_str):
         self.previous_data = self.weather_data
@@ -842,6 +859,9 @@ class WeatherApp(QMainWindow):
             return None
 
     def save_weather_to_db(self, transformed_data):
+        if self.db_connection is None or not self.db_connection.is_connected():
+            print("Database is not connected.\tNo weather data was saved.")
+            return
         try:
             cursor = self.db_connection.cursor()
             cursor.execute("SELECT id FROM locations WHERE id = %s", (transformed_data["location_id"],))
@@ -897,10 +917,11 @@ class WeatherApp(QMainWindow):
             self.auto_saves_coords_data = False
 
     def update_save_data_button(self):
-        if self.previous_data == self.weather_data:
-            self.save_current_data_button.setEnabled(False)
-        else:
-            self.save_current_data_button.setEnabled(True)
+        if self.db_connection and self.db_connection.is_connected():
+            if self.previous_data == self.weather_data:
+                self.save_current_data_button.setEnabled(False)
+            else:
+                self.save_current_data_button.setEnabled(True)
 
     def save_current_data(self):
         if self.weather_data != self.previous_data:
